@@ -332,7 +332,7 @@ void annexCode(void)
     updateArmingStatus();
 }
 
-void mwDisarm(disarmReason_t disarmReason)
+void disarm(disarmReason_t disarmReason)
 {
     if (ARMING_FLAG(ARMED)) {
         lastDisarmReason = disarmReason;
@@ -365,7 +365,7 @@ void releaseSharedTelemetryPorts(void) {
     }
 }
 
-void mwArm(void)
+void tryArm(void)
 {
     updateArmingStatus();
 
@@ -427,7 +427,7 @@ void processRx(timeUs_t currentTimeUs)
     // in 3D mode, we need to be able to disarm by switch at any time
     if (feature(FEATURE_3D)) {
         if (!IS_RC_MODE_ACTIVE(BOXARM))
-            mwDisarm(DISARM_SWITCH_3D);
+            disarm(DISARM_SWITCH_3D);
     }
 
     updateRSSI(currentTimeUs);
@@ -454,7 +454,7 @@ void processRx(timeUs_t currentTimeUs)
                     && (int32_t)(disarmAt - millis()) < 0
                 ) {
                     // auto-disarm configured and delay is over
-                    mwDisarm(DISARM_TIMEOUT);
+                    disarm(DISARM_TIMEOUT);
                     armedBeeperOn = false;
                 } else {
                     // still armed; do warning beeps while armed
@@ -485,7 +485,7 @@ void processRx(timeUs_t currentTimeUs)
         }
     }
 
-    processRcStickPositions(throttleStatus, armingConfig()->disarm_kill_switch, armingConfig()->fixed_wing_auto_arm);
+    processRcStickPositions(throttleStatus);
 
     updateActivatedModes();
 
@@ -524,7 +524,6 @@ void processRx(timeUs_t currentTimeUs)
         LED1_OFF;
     }
 
-#ifdef USE_SERVOS
     /* Flaperon mode */
     if (IS_RC_MODE_ACTIVE(BOXFLAPERON) && STATE(FLAPERON_AVAILABLE)) {
         if (!FLIGHT_MODE(FLAPERON)) {
@@ -533,7 +532,6 @@ void processRx(timeUs_t currentTimeUs)
     } else {
         DISABLE_FLIGHT_MODE(FLAPERON);
     }
-#endif
 
 #ifdef USE_FLM_TURN_ASSIST
     /* Turn assistant mode */
@@ -612,7 +610,7 @@ void processRx(timeUs_t currentTimeUs)
         }
     }
 
-    if (mixerConfig()->mixerMode == MIXER_FLYING_WING || mixerConfig()->mixerMode == MIXER_AIRPLANE || mixerConfig()->mixerMode == MIXER_CUSTOM_AIRPLANE) {
+    if (mixerConfig()->platformType == PLATFORM_AIRPLANE) {
         DISABLE_FLIGHT_MODE(HEADFREE_MODE);
     }
 
@@ -756,14 +754,8 @@ void taskMainPidLoop(timeUs_t currentTimeUs)
     // motors do not spin up while we are trying to arm or disarm.
     // Allow yaw control for tricopters if the user wants the servo to move even when unarmed.
     if (isUsingSticksForArming() && rcData[THROTTLE] <= rxConfig()->mincheck
-#ifndef USE_QUAD_MIXER_ONLY
-#ifdef USE_SERVOS
-            && !((mixerConfig()->mixerMode == MIXER_TRI || mixerConfig()->mixerMode == MIXER_CUSTOM_TRI) && servoConfig()->tri_unarmed_servo)
-#endif
-            && mixerConfig()->mixerMode != MIXER_AIRPLANE
-            && mixerConfig()->mixerMode != MIXER_FLYING_WING
-            && mixerConfig()->mixerMode != MIXER_CUSTOM_AIRPLANE
-#endif
+            && !((mixerConfig()->platformType == PLATFORM_TRICOPTER) && servoConfig()->tri_unarmed_servo)
+            && mixerConfig()->platformType != PLATFORM_AIRPLANE
     ) {
         rcCommand[YAW] = 0;
     }
@@ -805,7 +797,6 @@ void taskMainPidLoop(timeUs_t currentTimeUs)
 
     mixTable();
 
-#ifdef USE_SERVOS
     if (isMixerUsingServos()) {
         servoMixer(dT);
         processServoAutotrim();
@@ -820,7 +811,6 @@ void taskMainPidLoop(timeUs_t currentTimeUs)
     if (isServoOutputEnabled()) {
         writeServos();
     }
-#endif
 
     if (motorControlEnable) {
         writeMotors();

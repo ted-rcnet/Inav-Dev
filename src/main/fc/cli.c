@@ -25,13 +25,9 @@
 
 #include "platform.h"
 
-// FIXME remove this for targets that don't need a CLI.  Perhaps use a no-op macro when USE_CLI is not enabled
-// signal that we're in cli mode
 uint8_t cliMode = 0;
 extern uint8_t __config_start;   // configured via linker script when building binaries.
 extern uint8_t __config_end;
-
-#ifdef USE_CLI
 
 #include "blackbox/blackbox.h"
 
@@ -142,18 +138,6 @@ static void cliBootlog(char *cmdline);
 
 static const char* const emptyName = "-";
 
-#ifndef USE_QUAD_MIXER_ONLY
-// sync this with mixerMode_e
-static const char * const mixerNames[] = {
-    "TRI", "QUADP", "QUADX", "BI",
-    "GIMBAL", "Y6", "HEX6",
-    "FLYING_WING", "Y4", "HEX6X", "OCTOX8", "OCTOFLATP", "OCTOFLATX",
-    "AIRPLANE", "HELI_120_CCPM", "HELI_90_DEG", "VTAIL4",
-    "HEX6H", "PPM_TO_SERVO", "DUALCOPTER", "SINGLECOPTER",
-    "ATAIL4", "CUSTOM", "CUSTOMAIRPLANE", "CUSTOMTRI", NULL
-};
-#endif
-
 // sync this with features_e
 static const char * const featureNames[] = {
     "RX_PPM", "VBAT", "TX_PROF_SEL", "", "MOTOR_STOP",
@@ -185,18 +169,28 @@ static const char * const *sensorHardwareNames[] = {
         table_acc_hardware,
 #ifdef USE_BARO
         table_baro_hardware,
+#else
+        NULL,
 #endif
 #ifdef USE_MAG
         table_mag_hardware,
+#else
+        NULL,
 #endif
 #ifdef USE_RANGEFINDER
         table_rangefinder_hardware,
+#else
+        NULL,
 #endif
 #ifdef USE_PITOT
         table_pitot_hardware,
+#else
+        NULL,
 #endif
 #ifdef USE_OPTICAL_FLOW
         table_opflow_hardware,
+#else
+        NULL,
 #endif
 };
 
@@ -964,7 +958,6 @@ static void cliAdjustmentRange(char *cmdline)
     }
 }
 
-#ifndef USE_QUAD_MIXER_ONLY
 static void printMotorMix(uint8_t dumpMask, const motorMixer_t *customMotorMixer, const motorMixer_t *defaultCustomMotorMixer)
 {
     const char *format = "mmix %d %s %s %s %s";
@@ -1006,7 +999,6 @@ static void printMotorMix(uint8_t dumpMask, const motorMixer_t *customMotorMixer
 static void cliMotorMix(char *cmdline)
 {
     int check = 0;
-    uint8_t len;
     const char *ptr;
 
     if (isEmpty(cmdline)) {
@@ -1015,23 +1007,6 @@ static void cliMotorMix(char *cmdline)
         // erase custom mixer
         for (uint32_t i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
             customMotorMixerMutable(i)->throttle = 0.0f;
-        }
-    } else if (sl_strncasecmp(cmdline, "load", 4) == 0) {
-        ptr = nextArg(cmdline);
-        if (ptr) {
-            len = strlen(ptr);
-            for (uint32_t i = 0; ; i++) {
-                if (mixerNames[i] == NULL) {
-                    cliPrintLine("Invalid name");
-                    break;
-                }
-                if (sl_strncasecmp(ptr, mixerNames[i], len) == 0) {
-                    mixerLoadMix(i, customMotorMixerMutable(0));
-                    cliPrintLinef("Loaded %s", mixerNames[i]);
-                    cliMotorMix("");
-                    break;
-                }
-            }
         }
     } else {
         ptr = cmdline;
@@ -1067,7 +1042,6 @@ static void cliMotorMix(char *cmdline)
         }
     }
 }
-#endif // USE_QUAD_MIXER_ONLY
 
 static void printRxRange(uint8_t dumpMask, const rxChannelRangeConfig_t *channelRangeConfigs, const rxChannelRangeConfig_t *defaultChannelRangeConfigs)
 {
@@ -1271,7 +1245,6 @@ static void cliModeColor(char *cmdline)
 }
 #endif
 
-#ifdef USE_SERVOS
 static void printServo(uint8_t dumpMask, const servoParam_t *servoParam, const servoParam_t *defaultServoParam)
 {
     // print out servo settings
@@ -1446,23 +1419,6 @@ static void cliServoMix(char *cmdline)
         for (uint32_t i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
             servoParamsMutable(i)->reversedSources = 0;
         }
-    } else if (sl_strncasecmp(cmdline, "load", 4) == 0) {
-        const char *ptr = nextArg(cmdline);
-        if (ptr) {
-            len = strlen(ptr);
-            for (uint32_t i = 0; ; i++) {
-                if (mixerNames[i] == NULL) {
-                    cliPrintLine("Invalid name");
-                    break;
-                }
-                if (sl_strncasecmp(ptr, mixerNames[i], len) == 0) {
-                    servoMixerLoadMix(i);
-                    cliPrintLinef("Loaded %s", mixerNames[i]);
-                    cliServoMix("");
-                    break;
-                }
-            }
-        }
     } else if (sl_strncasecmp(cmdline, "reverse", 7) == 0) {
         enum {SERVO = 0, INPUT, REVERSE, ARGS_COUNT};
         char *ptr = strchr(cmdline, ' ');
@@ -1534,7 +1490,6 @@ static void cliServoMix(char *cmdline)
         }
     }
 }
-#endif // USE_SERVOS
 
 #ifdef USE_SDCARD
 
@@ -1686,6 +1641,127 @@ static void cliFlashRead(char *cmdline)
 }
 
 #endif
+#endif
+
+#ifdef USE_OSD
+static void printOsdLayout(uint8_t dumpMask, const osdConfig_t *osdConfig, const osdConfig_t *osdConfigDefault, int layout, int item)
+{
+    // "<layout> <item> <col> <row> <visible>"
+    const char *format = "osd_layout %d %d %d %d %c";
+    for (int ii = 0; ii < OSD_LAYOUT_COUNT; ii++) {
+        if (layout >= 0 && layout != ii) {
+            continue;
+        }
+        const uint16_t *layoutItems = osdConfig->item_pos[ii];
+        const uint16_t *defaultLayoutItems = osdConfigDefault->item_pos[ii];
+        for (int jj = 0; jj < OSD_ITEM_COUNT; jj++) {
+            if (item >= 0 && item != jj) {
+                continue;
+            }
+            bool equalsDefault = layoutItems[jj] == defaultLayoutItems[jj];
+            cliDefaultPrintLinef(dumpMask, equalsDefault, format,
+                ii, jj,
+                OSD_X(defaultLayoutItems[jj]),
+                OSD_Y(defaultLayoutItems[jj]),
+                OSD_VISIBLE(defaultLayoutItems[jj]) ? 'V' : 'H');
+
+            cliDumpPrintLinef(dumpMask, equalsDefault, format,
+                ii, jj,
+                OSD_X(layoutItems[jj]),
+                OSD_Y(layoutItems[jj]),
+                OSD_VISIBLE(layoutItems[jj]) ? 'V' : 'H');
+        }
+    }
+}
+
+static void cliOsdLayout(char *cmdline)
+{
+    char * saveptr;
+
+    int layout = -1;
+    int item = -1;
+    int col = 0;
+    int row = 0;
+    bool visible = false;
+    char *tok = strtok_r(cmdline, " ", &saveptr);
+
+    int ii;
+
+    for (ii = 0; tok != NULL; ii++, tok = strtok_r(NULL, " ", &saveptr)) {
+        switch (ii) {
+            case 0:
+                layout = fastA2I(tok);
+                if (layout < 0 || layout >= OSD_LAYOUT_COUNT) {
+                    cliShowParseError();
+                    return;
+                }
+                break;
+            case 1:
+                item = fastA2I(tok);
+                if (item < 0 || item >= OSD_ITEM_COUNT) {
+                    cliShowParseError();
+                    return;
+                }
+                break;
+            case 2:
+                col = fastA2I(tok);
+                if (col < 0 || col > OSD_X(OSD_POS_MAX)) {
+                    cliShowParseError();
+                    return;
+                }
+                break;
+            case 3:
+                row = fastA2I(tok);
+                if (row < 0 || row > OSD_Y(OSD_POS_MAX)) {
+                    cliShowParseError();
+                    return;
+                }
+                break;
+            case 4:
+                switch (*tok) {
+                    case 'H':
+                        visible = false;
+                        break;
+                    case 'V':
+                        visible = true;
+                        break;
+                    default:
+                        cliShowParseError();
+                        return;
+                }
+                break;
+            default:
+                cliShowParseError();
+                return;
+        }
+    }
+
+    switch (ii) {
+        case 0:
+            FALLTHROUGH;
+        case 1:
+            FALLTHROUGH;
+        case 2:
+            // No args, or just layout or layout and item. If any of them not provided,
+            // it will be the -1 that we used during initialization, so printOsdLayout()
+            // won't use them for filtering.
+            printOsdLayout(DUMP_MASTER, osdConfig(), osdConfig(), layout, item);
+            break;
+        case 4:
+            // No visibility provided. Keep the previous one.
+            visible = OSD_VISIBLE(osdConfig()->item_pos[layout][item]);
+            FALLTHROUGH;
+        case 5:
+            // Layout, item, pos and visibility. Set the item.
+            osdConfigMutable()->item_pos[layout][item] = OSD_POS(col, row) | (visible ? OSD_VISIBLE_FLAG : 0);
+            break;
+        default:
+            // Unhandled
+            cliShowParseError();
+            return;
+    }
+}
+
 #endif
 
 static void printFeature(uint8_t dumpMask, const featureConfig_t *featureConfig, const featureConfig_t *featureConfigDefault)
@@ -2007,42 +2083,6 @@ static void cliGpsPassthrough(char *cmdline)
 }
 #endif
 
-#ifndef USE_QUAD_MIXER_ONLY
-static void cliMixer(char *cmdline)
-{
-    int len;
-
-    len = strlen(cmdline);
-
-    if (len == 0) {
-        cliPrintLinef("Mixer: %s", mixerNames[mixerConfigMutable()->mixerMode - 1]);
-        return;
-    } else if (sl_strncasecmp(cmdline, "list", len) == 0) {
-        cliPrint("Available mixers: ");
-        for (uint32_t i = 0; ; i++) {
-            if (mixerNames[i] == NULL)
-                break;
-            cliPrintf("%s ", mixerNames[i]);
-        }
-        cliPrintLinefeed();
-        return;
-    }
-
-    for (uint32_t i = 0; ; i++) {
-        if (mixerNames[i] == NULL) {
-            cliPrintLine("Invalid name");
-            return;
-        }
-        if (sl_strncasecmp(cmdline, mixerNames[i], len) == 0) {
-            mixerConfigMutable()->mixerMode = i + 1;
-            break;
-        }
-    }
-
-    cliMixer("");
-}
-#endif
-
 static void cliMotor(char *cmdline)
 {
     int motor_index = 0;
@@ -2334,7 +2374,6 @@ static void cliStatus(char *cmdline)
     cliPrintLinef("Voltage: %d.%dV (%dS battery - %s)", getBatteryVoltage() / 100, getBatteryVoltage() % 100, getBatteryCellCount(), getBatteryStateString());
     cliPrintf("CPU Clock=%dMHz", (SystemCoreClock / 1000000));
 
-#if (FLASH_SIZE > 64)
     const uint32_t detectedSensorsMask = sensorsMask();
 
     for (int i = 0; i < SENSOR_INDEX_COUNT; i++) {
@@ -2342,8 +2381,10 @@ static void cliStatus(char *cmdline)
         const uint32_t mask = (1 << i);
         if ((detectedSensorsMask & mask) && (mask & SENSOR_NAMES_MASK)) {
             const int sensorHardwareIndex = detectedSensors[i];
-            const char *sensorHardware = sensorHardwareNames[i][sensorHardwareIndex];
-            cliPrintf(", %s=%s", sensorTypeNames[i], sensorHardware);
+            if (sensorHardwareNames[i]) {
+                const char *sensorHardware = sensorHardwareNames[i][sensorHardwareIndex];
+                cliPrintf(", %s=%s", sensorTypeNames[i], sensorHardware);
+            }
         }
     }
     cliPrintLinefeed();
@@ -2372,7 +2413,6 @@ static void cliStatus(char *cmdline)
         hardwareSensorStatusNames[getHwOpticalFlowStatus()],
         hardwareSensorStatusNames[getHwGPSStatus()]
     );
-#endif
 
 #ifdef USE_SDCARD
     cliSdInfo(NULL);
@@ -2571,18 +2611,11 @@ static void printConfig(const char *cmdline, bool doDiff)
         cliPrintHashLine("resources");
         //printResource(dumpMask, &defaultConfig);
 
-#ifndef USE_QUAD_MIXER_ONLY
         cliPrintHashLine("mixer");
-        const bool equalsDefault = mixerConfig_Copy.mixerMode == mixerConfig()->mixerMode;
-        const char *formatMixer = "mixer %s";
-        cliDefaultPrintLinef(dumpMask, equalsDefault, formatMixer, mixerNames[mixerConfig()->mixerMode - 1]);
-        cliDumpPrintLinef(dumpMask, equalsDefault, formatMixer, mixerNames[mixerConfig_Copy.mixerMode - 1]);
-
         cliDumpPrintLinef(dumpMask, customMotorMixer(0)->throttle == 0.0f, "\r\nmmix reset\r\n");
 
         printMotorMix(dumpMask, customMotorMixer_CopyArray, customMotorMixer(0));
 
-#ifdef USE_SERVOS
         // print custom servo mixer if exists
         cliPrintHashLine("servo mix");
         cliDumpPrintLinef(dumpMask, customServoMixers(0)->rate == 0, "smix reset\r\n");
@@ -2591,8 +2624,6 @@ static void printConfig(const char *cmdline, bool doDiff)
         // print servo parameters
         cliPrintHashLine("servo");
         printServo(dumpMask, servoParams_CopyArray, servoParams(0));
-#endif
-#endif
 
         cliPrintHashLine("feature");
         printFeature(dumpMask, &featureConfig_Copy, featureConfig());
@@ -2630,6 +2661,11 @@ static void printConfig(const char *cmdline, bool doDiff)
 
         cliPrintHashLine("rxrange");
         printRxRange(dumpMask, rxChannelRangeConfigs_CopyArray, rxChannelRangeConfigs(0));
+
+#ifdef USE_OSD
+        cliPrintHashLine("osd_layout");
+        printOsdLayout(dumpMask, &osdConfig_Copy, osdConfig(), -1, -1);
+#endif
 
         cliPrintHashLine("master");
         dumpAllValues(MASTER_VALUE, dumpMask);
@@ -2743,12 +2779,7 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("led", "configure leds", NULL, cliLed),
 #endif
     CLI_COMMAND_DEF("map", "configure rc channel order", "[<map>]", cliMap),
-#ifndef USE_QUAD_MIXER_ONLY
-    CLI_COMMAND_DEF("mixer", "configure mixer",
-        "list\r\n"
-        "\t<name>", cliMixer),
     CLI_COMMAND_DEF("mmix", "custom motor mixer", NULL, cliMotorMix),
-#endif
     CLI_COMMAND_DEF("motor",  "get/set motor", "<index> [<value>]", cliMotor),
     CLI_COMMAND_DEF("name", "name of craft", NULL, cliName),
 #ifdef PLAY_SOUND
@@ -2765,17 +2796,13 @@ const clicmd_t cmdTable[] = {
 #ifdef USE_SERIAL_PASSTHROUGH
     CLI_COMMAND_DEF("serialpassthrough", "passthrough serial data to port", "<id> [baud] [mode] : passthrough to serial", cliSerialPassthrough),
 #endif
-#ifdef USE_SERVOS
     CLI_COMMAND_DEF("servo", "configure servos", NULL, cliServo),
-#endif
     CLI_COMMAND_DEF("set", "change setting", "[<name>=<value>]", cliSet),
-#ifdef USE_SERVOS
     CLI_COMMAND_DEF("smix", "servo mixer",
         "<rule> <servo> <source> <rate> <speed>\r\n"
         "\treset\r\n"
         "\tload <mixer>\r\n"
         "\treverse <servo> <source> r|n", cliServoMix),
-#endif
 #ifdef USE_SDCARD
     CLI_COMMAND_DEF("sd_info", "sdcard info", NULL, cliSdInfo),
 #endif
@@ -2784,6 +2811,9 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("tasks", "show task stats", NULL, cliTasks),
 #endif
     CLI_COMMAND_DEF("version", "show version", NULL, cliVersion),
+#ifdef USE_OSD
+    CLI_COMMAND_DEF("osd_layout", "get or set the layout of OSD items", "[<layout> [<item> [<col> <row> [<visible>]]]]", cliOsdLayout),
+#endif
 };
 
 static void cliHelp(char *cmdline)
@@ -2933,4 +2963,3 @@ void cliInit(const serialConfig_t *serialConfig)
 {
     UNUSED(serialConfig);
 }
-#endif // USE_CLI

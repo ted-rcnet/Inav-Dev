@@ -21,9 +21,6 @@
 #define I2C2_OVERCLOCK false
 #define USE_I2C_PULLUP          // Enable built-in pullups on all boards in case external ones are too week
 
-#define USE_SERVOS
-#define USE_CLI
-
 #define USE_RX_PWM
 #define USE_RX_PPM
 #define USE_SERIAL_RX
@@ -34,11 +31,10 @@
 
 #define COMMON_DEFAULT_FEATURES (FEATURE_TX_PROF_SEL)
 
-#if defined(STM32F1) || defined(STM32F3)
+#if defined(STM32F3)
 #define USE_UNDERCLOCK
 #endif
 
-#if (FLASH_SIZE > 64)
 #define USE_64BIT_TIME
 #define USE_BLACKBOX
 #define USE_GPS
@@ -48,7 +44,6 @@
 #define USE_TELEMETRY
 #define USE_TELEMETRY_LTM
 #define USE_TELEMETRY_FRSKY
-#endif
 
 #if defined(STM_FAST_TARGET)
 #define SCHEDULER_DELAY_LIMIT           10
@@ -69,12 +64,12 @@
 #define USE_BOOTLOG
 #define BOOTLOG_DESCRIPTIONS
 #define USE_STATS
-#define USE_64BIT_TIME
 #define USE_GYRO_NOTCH_1
 #define USE_GYRO_NOTCH_2
 #define USE_DTERM_NOTCH
 #define USE_ACC_NOTCH
 #define USE_CMS
+#define CMS_MENU_OSD
 #define USE_DASHBOARD
 #define USE_OLED_UG2864
 #define USE_MSP_DISPLAYPORT
@@ -120,7 +115,6 @@
 #define SKIP_TASK_STATISTICS
 #define SKIP_CLI_COMMAND_HELP
 #define SKIP_CLI_RESOURCES
-#define DISABLE_UNCOMMON_MIXERS
 #define NAV_MAX_WAYPOINTS       30
 #define MAX_BOOTLOG_ENTRIES     32
 #endif

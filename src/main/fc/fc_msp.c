@@ -345,7 +345,7 @@ static bool mspFcProcessOutCommand(uint16_t cmdMSP, sbuf_t *dst, mspPostProcessF
     // DEPRECATED - Use MSP_API_VERSION
     case MSP_IDENT:
         sbufWriteU8(dst, MW_VERSION);
-        sbufWriteU8(dst, mixerConfig()->mixerMode);
+        sbufWriteU8(dst, 3); //We no longer have mixerMode, just sent 3 (QuadX) as fallback
         sbufWriteU8(dst, MSP_PROTOCOL_VERSION);
         sbufWriteU32(dst, CAP_PLATFORM_32BIT | CAP_DYNBALANCE | CAP_FLAPS | CAP_NAVCAP | CAP_EXTAUX); // "capability"
         break;
@@ -439,7 +439,6 @@ static bool mspFcProcessOutCommand(uint16_t cmdMSP, sbuf_t *dst, mspPostProcessF
         }
         break;
 
-#ifdef USE_SERVOS
     case MSP_SERVO:
         sbufWriteData(dst, &servo, MAX_SUPPORTED_SERVOS * 2);
         break;
@@ -466,14 +465,12 @@ static bool mspFcProcessOutCommand(uint16_t cmdMSP, sbuf_t *dst, mspPostProcessF
             sbufWriteU8(dst, 0);
         }
         break;
-#endif
-
     case MSP2_COMMON_MOTOR_MIXER:
         for (uint8_t i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
             sbufWriteU16(dst, customMotorMixer(i)->throttle * 1000);
-            sbufWriteU16(dst, constrainf(customMotorMixer(i)->roll + 1.0f, 0.0f, 2.0f) * 1000);
-            sbufWriteU16(dst, constrainf(customMotorMixer(i)->pitch + 1.0f, 0.0f, 2.0f) * 1000);
-            sbufWriteU16(dst, constrainf(customMotorMixer(i)->yaw + 1.0f, 0.0f, 2.0f) * 1000);
+            sbufWriteU16(dst, constrainf(customMotorMixer(i)->roll + 2.0f, 0.0f, 4.0f) * 1000);
+            sbufWriteU16(dst, constrainf(customMotorMixer(i)->pitch + 2.0f, 0.0f, 4.0f) * 1000);
+            sbufWriteU16(dst, constrainf(customMotorMixer(i)->yaw + 2.0f, 0.0f, 4.0f) * 1000);
         }
         break;
 
@@ -824,7 +821,7 @@ static bool mspFcProcessOutCommand(uint16_t cmdMSP, sbuf_t *dst, mspPostProcessF
         break;
 
     case MSP_MIXER:
-        sbufWriteU8(dst, mixerConfig()->mixerMode);
+        sbufWriteU8(dst, 3); // mixerMode no longer supported, send 3 (QuadX) as fallback
         break;
 
     case MSP_RX_CONFIG:
@@ -870,7 +867,7 @@ static bool mspFcProcessOutCommand(uint16_t cmdMSP, sbuf_t *dst, mspPostProcessF
         break;
 
     case MSP_BF_CONFIG:
-        sbufWriteU8(dst, mixerConfig()->mixerMode);
+        sbufWriteU8(dst, 3); // mixerMode no longer supported, send 3 (QuadX) as fallback
 
         sbufWriteU32(dst, featureMask());
 
@@ -971,7 +968,7 @@ static bool mspFcProcessOutCommand(uint16_t cmdMSP, sbuf_t *dst, mspPostProcessF
         sbufWriteU16(dst, osdConfig()->dist_alarm);
         sbufWriteU16(dst, osdConfig()->neg_alt_alarm);
         for (int i = 0; i < OSD_ITEM_COUNT; i++) {
-            sbufWriteU16(dst, osdConfig()->item_pos[i]);
+            sbufWriteU16(dst, osdConfig()->item_pos[0][i]);
         }
 #else
         sbufWriteU8(dst, 0); // OSD not supported
@@ -1009,11 +1006,7 @@ static bool mspFcProcessOutCommand(uint16_t cmdMSP, sbuf_t *dst, mspPostProcessF
         sbufWriteU8(dst, 1);    // BF: motorConfig()->useUnsyncedPwm
         sbufWriteU8(dst, motorConfig()->motorPwmProtocol);
         sbufWriteU16(dst, motorConfig()->motorPwmRate);
-#ifdef USE_SERVOS
         sbufWriteU16(dst, servoConfig()->servoPwmRate);
-#else
-        sbufWriteU16(dst, 0);
-#endif
         sbufWriteU8(dst, gyroConfig()->gyroSync);
         break;
 
@@ -1047,8 +1040,8 @@ static bool mspFcProcessOutCommand(uint16_t cmdMSP, sbuf_t *dst, mspPostProcessF
         break;
 
     case MSP_PID_ADVANCED:
-        sbufWriteU16(dst, pidProfile()->rollPitchItermIgnoreRate);
-        sbufWriteU16(dst, pidProfile()->yawItermIgnoreRate);
+        sbufWriteU16(dst, 0); // pidProfile()->rollPitchItermIgnoreRate
+        sbufWriteU16(dst, 0); // pidProfile()->yawItermIgnoreRate
         sbufWriteU16(dst, pidProfile()->yaw_p_limit);
         sbufWriteU8(dst, 0); //BF: pidProfile()->deltaMethod
         sbufWriteU8(dst, 0); //BF: pidProfile()->vbatPidCompensation
@@ -1302,6 +1295,48 @@ static bool mspFcProcessOutCommand(uint16_t cmdMSP, sbuf_t *dst, mspPostProcessF
 #endif
         break;
 
+    case MSP2_INAV_MIXER:
+        sbufWriteU8(dst, mixerConfig()->yaw_motor_direction);
+        sbufWriteU16(dst, mixerConfig()->yaw_jump_prevention_limit);
+        sbufWriteU8(dst, mixerConfig()->platformType);
+        sbufWriteU8(dst, mixerConfig()->hasFlaps);
+        sbufWriteU16(dst, mixerConfig()->appliedMixerPreset);
+        sbufWriteU8(dst, MAX_SUPPORTED_MOTORS);
+        sbufWriteU8(dst, MAX_SUPPORTED_SERVOS);
+        break;
+
+#if defined(USE_OSD)
+    case MSP2_INAV_OSD_LAYOUTS:
+        sbufWriteU8(dst, OSD_LAYOUT_COUNT);
+        sbufWriteU8(dst, OSD_ITEM_COUNT);
+        for (unsigned ii = 0; ii < OSD_LAYOUT_COUNT; ii++) {
+            for (unsigned jj = 0; jj < OSD_ITEM_COUNT; jj++) {
+                sbufWriteU16(dst, osdConfig()->item_pos[ii][jj]);
+            }
+        }
+        break;
+
+    case MSP2_INAV_OSD_ALARMS:
+        sbufWriteU8(dst, osdConfig()->rssi_alarm);
+        sbufWriteU16(dst, osdConfig()->time_alarm);
+        sbufWriteU16(dst, osdConfig()->alt_alarm);
+        sbufWriteU16(dst, osdConfig()->dist_alarm);
+        sbufWriteU16(dst, osdConfig()->neg_alt_alarm);
+        break;
+
+    case MSP2_INAV_OSD_PREFERENCES:
+        sbufWriteU8(dst, osdConfig()->video_system);
+        sbufWriteU8(dst, osdConfig()->main_voltage_decimals);
+        sbufWriteU8(dst, osdConfig()->ahi_reverse_roll);
+        sbufWriteU8(dst, osdConfig()->crosshairs_style);
+        sbufWriteU8(dst, osdConfig()->left_sidebar_scroll);
+        sbufWriteU8(dst, osdConfig()->right_sidebar_scroll);
+        sbufWriteU8(dst, osdConfig()->sidebar_scroll_arrows);
+        sbufWriteU8(dst, osdConfig()->units);
+        sbufWriteU8(dst, osdConfig()->stats_energy_unit);
+        break;
+
+#endif
     default:
         return false;
     }
@@ -1536,7 +1571,7 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
 
         motorConfigMutable()->minthrottle = constrain(sbufReadU16(src), PWM_RANGE_MIN, PWM_RANGE_MAX);
         motorConfigMutable()->maxthrottle = constrain(sbufReadU16(src), PWM_RANGE_MIN, PWM_RANGE_MAX);
-        motorConfigMutable()->mincommand = constrain(sbufReadU16(src), PWM_RANGE_MIN, PWM_RANGE_MAX);
+        motorConfigMutable()->mincommand = constrain(sbufReadU16(src), 0, PWM_RANGE_MAX);
 
         failsafeConfigMutable()->failsafe_throttle = constrain(sbufReadU16(src), PWM_RANGE_MIN, PWM_RANGE_MAX);
 
@@ -1576,7 +1611,7 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
 
             motorConfigMutable()->minthrottle = constrain(sbufReadU16(src), PWM_RANGE_MIN, PWM_RANGE_MAX);
             motorConfigMutable()->maxthrottle = constrain(sbufReadU16(src), PWM_RANGE_MIN, PWM_RANGE_MAX);
-            motorConfigMutable()->mincommand = constrain(sbufReadU16(src), PWM_RANGE_MIN, PWM_RANGE_MAX);
+            motorConfigMutable()->mincommand = constrain(sbufReadU16(src), 0, PWM_RANGE_MAX);
 
             failsafeConfigMutable()->failsafe_throttle = constrain(sbufReadU16(src), PWM_RANGE_MIN, PWM_RANGE_MAX);
 
@@ -1651,7 +1686,6 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
             return MSP_RESULT_ERROR;
         break;
 
-#ifdef USE_SERVOS
     case MSP_SET_SERVO_CONFIGURATION:
         if (dataSize != (1 + 14)) {
             return MSP_RESULT_ERROR;
@@ -1671,9 +1705,7 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
             servoComputeScalingFactors(tmp_u8);
         }
         break;
-#endif
 
-#ifdef USE_SERVOS
     case MSP_SET_SERVO_MIX_RULE:
         sbufReadU8Safe(&tmp_u8, src);
         if ((dataSize >= 8) && (tmp_u8 < MAX_SERVO_RULES)) {
@@ -1687,15 +1719,14 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
         } else
             return MSP_RESULT_ERROR;
         break;
-#endif
 
     case MSP2_COMMON_SET_MOTOR_MIXER:
         sbufReadU8Safe(&tmp_u8, src);
         if ((dataSize == 9) && (tmp_u8 < MAX_SUPPORTED_MOTORS)) {
             customMotorMixerMutable(tmp_u8)->throttle = constrainf(sbufReadU16(src) / 1000.0f, 0.0f, 1.0f);
-            customMotorMixerMutable(tmp_u8)->roll = constrainf(sbufReadU16(src) / 1000.0f, 0.0f, 2.0f) - 1.0f;
-            customMotorMixerMutable(tmp_u8)->pitch = constrainf(sbufReadU16(src) / 1000.0f, 0.0f, 2.0f) - 1.0f;
-            customMotorMixerMutable(tmp_u8)->yaw = constrainf(sbufReadU16(src) / 1000.0f, 0.0f, 2.0f) - 1.0f;
+            customMotorMixerMutable(tmp_u8)->roll = constrainf(sbufReadU16(src) / 1000.0f, 0.0f, 4.0f) - 2.0f;
+            customMotorMixerMutable(tmp_u8)->pitch = constrainf(sbufReadU16(src) / 1000.0f, 0.0f, 4.0f) - 2.0f;
+            customMotorMixerMutable(tmp_u8)->yaw = constrainf(sbufReadU16(src) / 1000.0f, 0.0f, 4.0f) - 2.0f;
         } else
             return MSP_RESULT_ERROR;
         break;
@@ -1743,11 +1774,7 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
             sbufReadU8(src);    // BF: motorConfig()->useUnsyncedPwm
             motorConfigMutable()->motorPwmProtocol = sbufReadU8(src);
             motorConfigMutable()->motorPwmRate = sbufReadU16(src);
-#ifdef USE_SERVOS
             servoConfigMutable()->servoPwmRate = sbufReadU16(src);
-#else
-            sbufReadU16(src);
-#endif
             gyroConfigMutable()->gyroSync = sbufReadU8(src);
         } else
             return MSP_RESULT_ERROR;
@@ -1786,8 +1813,8 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
 
     case MSP_SET_PID_ADVANCED:
         if (dataSize >= 17) {
-            pidProfileMutable()->rollPitchItermIgnoreRate = sbufReadU16(src);
-            pidProfileMutable()->yawItermIgnoreRate = sbufReadU16(src);
+            sbufReadU16(src);   // pidProfileMutable()->rollPitchItermIgnoreRate
+            sbufReadU16(src);   // pidProfileMutable()->yawItermIgnoreRate
             pidProfileMutable()->yaw_p_limit = sbufReadU16(src);
 
             sbufReadU8(src); //BF: pidProfileMutable()->deltaMethod
@@ -2023,7 +2050,7 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
         } else {
             // set a position setting
             if ((dataSize >= 3) && (tmp_u8 < OSD_ITEM_COUNT)) // tmp_u8 == addr
-                osdConfigMutable()->item_pos[tmp_u8] = sbufReadU16(src);
+                osdConfigMutable()->item_pos[0][tmp_u8] = sbufReadU16(src);
             else
                 return MSP_RESULT_ERROR;
         }
@@ -2175,15 +2202,13 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
             return MSP_RESULT_ERROR;
         break;
 
-#ifndef USE_QUAD_MIXER_ONLY
     case MSP_SET_MIXER:
         if (dataSize >= 1) {
-            mixerConfigMutable()->mixerMode = sbufReadU8(src);
+            sbufReadU8(src); //This is ignored, no longer supporting mixerMode
             mixerUpdateStateFlags();    // Required for correct preset functionality
         } else
             return MSP_RESULT_ERROR;
         break;
-#endif
 
     case MSP_SET_RX_CONFIG:
         if (dataSize >= 24) {
@@ -2244,12 +2269,8 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
 
     case MSP_SET_BF_CONFIG:
         if (dataSize >= 16) {
-#ifdef USE_QUAD_MIXER_ONLY
-            sbufReadU8(src); // mixerMode ignored
-#else
-            mixerConfigMutable()->mixerMode = sbufReadU8(src); // mixerMode
+            sbufReadU8(src); // mixerMode no longer supported, just swallow
             mixerUpdateStateFlags();    // Required for correct preset functionality
-#endif
 
             featureClearAll();
             featureSet(sbufReadU32(src)); // features bitmap
@@ -2388,6 +2409,63 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
         else
             return MSP_RESULT_ERROR;
         break;
+
+    case MSP2_INAV_SET_MIXER:
+        mixerConfigMutable()->yaw_motor_direction = sbufReadU8(src);
+        mixerConfigMutable()->yaw_jump_prevention_limit = sbufReadU16(src);
+        mixerConfigMutable()->platformType = sbufReadU8(src);
+        mixerConfigMutable()->hasFlaps = sbufReadU8(src);
+        mixerConfigMutable()->appliedMixerPreset = sbufReadU16(src);
+        sbufReadU8(src); //Read and ignore MAX_SUPPORTED_MOTORS
+        sbufReadU8(src); //Read and ignore MAX_SUPPORTED_SERVOS
+        mixerUpdateStateFlags();
+        break;
+
+#if defined(USE_OSD)
+    case MSP2_INAV_OSD_SET_LAYOUT_ITEM:
+        {
+            uint8_t layout;
+            if (!sbufReadU8Safe(&layout, src)) {
+                return MSP_RESULT_ERROR;
+            }
+            uint8_t item;
+            if (!sbufReadU8Safe(&item, src)) {
+                return MSP_RESULT_ERROR;
+            }
+            if (!sbufReadU16Safe(&osdConfigMutable()->item_pos[layout][item], src)) {
+                return MSP_RESULT_ERROR;
+            }
+            osdStartFullRedraw();
+        }
+
+        break;
+    case MSP2_INAV_OSD_SET_ALARMS:
+        {
+            sbufReadU8Safe(&osdConfigMutable()->rssi_alarm, src);
+            sbufReadU16Safe(&osdConfigMutable()->time_alarm, src);
+            sbufReadU16Safe(&osdConfigMutable()->alt_alarm, src);
+            sbufReadU16Safe(&osdConfigMutable()->dist_alarm, src);
+            sbufReadU16Safe(&osdConfigMutable()->neg_alt_alarm, src);
+            osdStartFullRedraw();
+        }
+
+        break;
+    case MSP2_INAV_OSD_SET_PREFERENCES:
+        {
+            sbufReadU8Safe(&osdConfigMutable()->video_system, src);
+            sbufReadU8Safe(&osdConfigMutable()->main_voltage_decimals, src);
+            sbufReadU8Safe(&osdConfigMutable()->ahi_reverse_roll, src);
+            sbufReadU8Safe(&osdConfigMutable()->crosshairs_style, src);
+            sbufReadU8Safe(&osdConfigMutable()->left_sidebar_scroll, src);
+            sbufReadU8Safe(&osdConfigMutable()->right_sidebar_scroll, src);
+            sbufReadU8Safe(&osdConfigMutable()->sidebar_scroll_arrows, src);
+            sbufReadU8Safe(&osdConfigMutable()->units, src);
+            sbufReadU8Safe(&osdConfigMutable()->stats_energy_unit, src);
+            osdStartFullRedraw();
+        }
+
+        break;
+#endif
 
     default:
         return MSP_RESULT_ERROR;
