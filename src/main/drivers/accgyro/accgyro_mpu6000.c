@@ -34,7 +34,6 @@
 #include "drivers/system.h"
 #include "drivers/time.h"
 #include "drivers/io.h"
-#include "drivers/exti.h"
 #include "drivers/bus.h"
 
 #include "drivers/sensor.h"
@@ -42,7 +41,7 @@
 #include "drivers/accgyro/accgyro_mpu.h"
 #include "drivers/accgyro/accgyro_mpu6000.h"
 
-#if (defined(USE_GYRO_MPU6000) || defined(USE_ACC_MPU6000))
+#if defined(USE_IMU_MPU6000)
 
 // Bits
 #define BIT_H_RESET                 0x80
@@ -75,8 +74,6 @@ static void mpu6000AccAndGyroInit(gyroDev_t *gyro)
     const gyroFilterAndRateConfig_t * config = mpuChooseGyroConfig(gyro->lpf, 1000000 / gyro->requestedSampleIntervalUs);
     gyro->sampleRateIntervalUs = 1000000 / config->gyroRateHz;
 
-    gyroIntExtiInit(gyro);
-
     busSetSpeed(busDev, BUS_SPEED_INITIALIZATION);
 
     // Device Reset
@@ -102,21 +99,13 @@ static void mpu6000AccAndGyroInit(gyroDev_t *gyro)
     busWrite(busDev, MPU_RA_SMPLRT_DIV, config->gyroConfigValues[1]);
     delayMicroseconds(15);
 
-    // Gyro +/- 1000 DPS Full Scale
+    // Gyro +/- 2000 DPS Full Scale
     busWrite(busDev, MPU_RA_GYRO_CONFIG, INV_FSR_2000DPS << 3);
     delayMicroseconds(15);
 
-    // Accel +/- 8 G Full Scale
-    busWrite(busDev, MPU_RA_ACCEL_CONFIG, INV_FSR_8G << 3);
+    // Accel +/- 16 G Full Scale
+    busWrite(busDev, MPU_RA_ACCEL_CONFIG, INV_FSR_16G << 3);
     delayMicroseconds(15);
-
-    busWrite(busDev, MPU_RA_INT_PIN_CFG, 0 << 7 | 0 << 6 | 0 << 5 | 1 << 4 | 0 << 3 | 0 << 2 | 0 << 1 | 0 << 0);  // INT_ANYRD_2CLEAR
-    delayMicroseconds(15);
-
-#ifdef USE_MPU_DATA_READY_SIGNAL
-    busWrite(busDev, MPU_RA_INT_ENABLE, MPU_RF_DATA_RDY_EN);
-    delayMicroseconds(15);
-#endif
 
     // Accel and Gyro DLPF Setting
     busWrite(busDev, MPU_RA_CONFIG, config->gyroConfigValues[0]);
@@ -133,7 +122,7 @@ static void mpu6000AccAndGyroInit(gyroDev_t *gyro)
 
 static void mpu6000AccInit(accDev_t *acc)
 {
-    acc->acc_1G = 512 * 8;
+    acc->acc_1G = 512 * 4;
 }
 
 bool mpu6000AccDetect(accDev_t *acc)
@@ -150,6 +139,7 @@ bool mpu6000AccDetect(accDev_t *acc)
 
     acc->initFn = mpu6000AccInit;
     acc->readFn = mpuAccReadScratchpad;
+    acc->accAlign = acc->busDev->param;
 
     return true;
 }
@@ -162,7 +152,7 @@ static bool mpu6000DeviceDetect(busDevice_t * busDev)
     busSetSpeed(busDev, BUS_SPEED_INITIALIZATION);
 
     busWrite(busDev, MPU_RA_PWR_MGMT_1, BIT_H_RESET);
-    
+
     do {
         delay(150);
 
@@ -218,6 +208,7 @@ bool mpu6000GyroDetect(gyroDev_t *gyro)
     gyro->intStatusFn = gyroCheckDataReady;
     gyro->temperatureFn = mpuTemperatureReadScratchpad;
     gyro->scale = 1.0f / 16.4f;     // 16.4 dps/lsb scalefactor
+    gyro->gyroAlign = gyro->busDev->param;
 
     return true;
 }

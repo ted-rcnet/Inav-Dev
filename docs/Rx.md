@@ -2,18 +2,14 @@
 
 A receiver is used to receive radio control signals from your transmitter and convert them into signals that the flight controller can understand.
 
-There are 3 basic types of receivers:
+There are 2 basic types of receivers:
 
-1. Parallel PWM Receivers
-2. PPM Receivers
-3. Serial Receivers
-
-## Parallel PWM Receivers
-
-8 channel support, 1 channel per input pin.  On some platforms using parallel input will disable the use of serial ports
-and SoftSerial making it hard to use telemetry or GPS features.
+1. PPM Receivers
+2. Serial Receivers
 
 ## PPM Receivers
+
+**Only supported in INAV 3.x and below**
 
 PPM is sometimes known as PPM SUM or CPPM.
 
@@ -35,7 +31,11 @@ http://www.frsky-rc.com/product/pro.php?pro_id=21
 
 ## Serial Receivers
 
+*Connect the receivers to UARTs and not to Software Serial ports. Using software serial for RX input can cause unexpected behaviours beacause the port cannot handle reliably the bit rate needed by the most common protocols*
+
 ### Spektrum
+
+This section describes the legacy Spektrum satellite capability; the newer SRXL2 protocol is described [later in this document](#srxl2) .
 
 8 channels via serial currently supported.
 
@@ -47,14 +47,14 @@ http://www.lemon-rx.com/shop/index.php?route=product/product&product_id=118
 
 #### Spektrum pesudo RSSI
 
-As of iNav 1.6, a pseudo RSSI, based on satellite fade count is supported and reported as normal iNav RSSI (0-1023 range). In order to use this feature, the following is necessary:
+As of INAV 1.6, a pseudo RSSI, based on satellite fade count is supported and reported as normal INAV RSSI (0-1023 range). In order to use this feature, the following is necessary:
 
 * Bind the satellite receiver using a physical RX; the bind function provided by the flight controller is not sufficient.
 * The CLI variable `rssi_channel` is set to channel 9:
-````
+```
 set rssi_channel = 9
-````
-This pseudo-RSSI should work on all makes of Spektrum satellite RX; it is tested as working on Lemon RX satellites http://www.lemon-rx.com/index.php?route=product/product&path=72&product_id=109 and http://www.lemon-rx.com/index.php?route=product/product&path=72&product_id=135 (recommended).
+```
+This pseudo-RSSI should work on all makes of Spektrum satellite RX; it is tested as working on [Lemon RX satellites](http://www.lemon-rx.com/index.php?route=product/product&path=72&product_id=109 and http://www.lemon-rx.com/index.php?route=product/product&path=72&product_id=135) (recommended).
 
 ### S.BUS
 
@@ -87,22 +87,33 @@ The bug prevents use of all 16 channels.  Upgrade to the latest OpenTX version t
 without the fix you are limited to 8 channels regardless of the CH1-16/D16 settings.
 
 
+### F.Port
 
-### XBUS
+F.Port is a protocol running on async serial allowing 16 controls channels and telemetry on a single UART.
 
-The firmware currently supports the MODE B version of the XBus protocol.
-Make sure to set your TX to use "MODE B" for XBUS in the TX menus!
-See here for info on JR's XBUS protocol: http://www.jrpropo.com/english/propo/XBus/
+Supported receivers include FrSky R-XSR, X4R, X4R-SB, XSR, XSR-M, R9M Slim, R9M Slim+, R9 Mini. For ACCST receivers you need to flash the corresponding firmware for it to output F.Port. For ACCESS receivers the protocol output from the receiver can be switched between S.Bus and F.Port from the model's setup page in the RX options.
 
-These receivers are reported working:
+#### Connection
 
-XG14 14ch DMSS System w/RG731BX XBus Receiver
-http://www.jramericas.com/233794/JRP00631/
+Just connect the S.Port wire from the receiver to the TX pad of a free UART on your flight controller
 
-There exist a remote receiver made for small BNF-models like the Align T-Rex 150 helicopter. The code also supports using the Align DMSS RJ01 receiver directly with the INAV software.
-To use this receiver you must power it with 3V from the hardware, and then connect the serial line as other serial RX receivers.
-In order for this receiver to work, you need to specify the XBUS_MODE_B_RJ01 for serialrx_provider. Note that you need to set your radio mode for XBUS "MODE B" also for this receiver to work.
-Receiver name: Align DMSS RJ01 (HER15001)
+#### Configuration
+
+For INAV 2.6 and newer versions, the default configuration should just work. However, if you're
+upgrading from a previous version you might need to set the following settings to their
+default values:
+
+```
+set serialrx_inverted = OFF
+set serialrx_halfduplex = AUTO
+```
+
+For INAV versions prior to 2.6, you need to change the following settings:
+
+```
+set serialrx_inverted = ON
+set serialrx_halfduplex = ON
+```
 
 ### SUMD
 
@@ -116,17 +127,11 @@ http://www.graupner.de/en/products/33512/product.aspx
 Graupner receiver GR-12SH+ HoTT
 http://www.graupner.de/en/products/870ade17-ace8-427f-943b-657040579906/33565/product.aspx
 
-### SUMH
-
-8 channels via serial currently supported.
-
-SUMH is a legacy Graupner protocol.  Graupner have issued a firmware updates for many recivers that lets them use SUMD instead.
-
 ### IBUS
 
 10 channels via serial currently supported.
 
-IBUS is the FlySky digital serial protocol and is available with the FS-IA6B, FS-X6B and FS-IA10 receivers. 
+IBUS is the FlySky digital serial protocol and is available with the FS-IA6B, FS-X6B and FS-IA10 receivers.
 The Turnigy TGY-IA6B and TGY-IA10 are the same devices with a different label, therefore they also work.
 
 IBUS can provide up to 120Hz refresh rate, more than double compared to standard 50Hz of PPM.
@@ -147,28 +152,65 @@ After flash "10ch Timer Mod i6 Updater", it is passible to get RSSI signal on se
 
 It is possible to use IBUS RX and IBUS telemetry on only one port of the hardware UART. More information in Telemetry.md.
 
+### SRXL2
+
+SRXL2 is a newer Spektrum protocol that provides a bidirectional link between the FC and the receiver, allowing the user to get FC telemetry data and basic settings on Spektrum Gen 2 airware TX. SRXL2 is supported in INAV 2.6 and later. It offers improved performance and features compared to earlier Spektrum RX.
+
+#### Wiring
+
+Signal pin on receiver (labeled "S") must be wired to a **UART TX** pin on the FC. Voltage can be 3.3V (4.0V for SPM4651T) to 8.4V. On some F4 FCs, the TX pin may have a signal inverter (such as for S.Port). Make sure this isn't the case for the pin you intend to use.
+
+#### Configuration
+
+Selection of SXRL2 is provided in the INAV 2.6 and later configurators. It is necessary to complete the configuration via the CLI; the following settings are recommended:
+
+```
+feature TELEMETRY
+feature -RSSI_ADC
+map TAER
+set receiver_type = SERIAL
+set serialrx_provider = SRXL2
+set serialrx_inverted = OFF
+set srxl2_unit_id = 1
+set srxl2_baud_fast = ON
+set rssi_source = PROTOCOL
+set rssi_channel = 0
+```
+
+#### Notes:
+
+* RSSI_ADC is disabled, as this would override the value provided through SRXL2
+* `rssi_channel = 0` is required, unlike earlier Spektrum devices (e.g. SPM4649T).
+
+Setting these values differently may have an adverse effects on RSSI readings.
+
+#### CLI Bind Command
+
+This command will put the receiver into bind mode without the need to reboot the FC as it was required with the older `spektrum_sat_bind` command.
+
+```
+bind_rx
+```
+
 ## MultiWii serial protocol (MSP)
 
 Allows you to use MSP commands as the RC input.  Only 8 channel support to maintain compatibility with MSP.
 
 ## Configuration
 
-There are 3 features that control receiver mode:
+The receiver type can be set from the configurator or CLI.
 
 ```
-RX_PPM
-RX_SERIAL
-RX_PARALLEL_PWM
-RX_MSP
+# get receiver_type
+receiver_type = NONE
+Allowed values: NONE, PPM, SERIAL, MSP, SPI, UIB
 ```
-
-Only one receiver feature can be enabled at a time.
 
 ### RX signal-loss detection
 
 The software has signal loss detection which is always enabled.  Signal loss detection is used for safety and failsafe reasons.
 
-The `rx_min_usec` and `rx_max_usec` settings helps detect when your RX stops sending any data, enters failsafe mode or when the RX looses signal.
+The `rx_min_usec` and `rx_max_usec` settings helps detect when your RX stops sending any data, enters failsafe mode or when the RX loses signal.
 
 By default, when the signal loss is detected the FC will set pitch/roll/yaw to the value configured for `mid_rc`. The throttle will be set to the value configured for `rx_min_usec` or `mid_rc` if using 3D feature.
 
@@ -177,49 +219,6 @@ Signal loss can be detected when:
 1. no rx data is received (due to radio reception, recevier configuration or cabling issues).
 2. using Serial RX and receiver indicates failsafe condition.
 3. using any of the first 4 stick channels do not have a value in the range specified by `rx_min_usec` and `rx_max_usec`.
-
-### RX loss configuration
-
-The `rxfail` cli command is used to configure per-channel rx-loss behaviour.
-You can use the `rxfail` command to change this behaviour.
-A flight channel can either be AUTOMATIC or HOLD, an AUX channel can either be SET or HOLD.  
-
-* AUTOMATIC - Flight channels are set to safe values (low throttle, mid position for yaw/pitch/roll).
-* HOLD - Channel holds the last value.
-* SET - Channel is set to a specific configured value.
-
-The default mode is AUTOMATIC for flight channels and HOLD for AUX channels.
-
-The rxfail command can be used in conjunction with mode ranges to trigger various actions.
-
-The `rxfail` command takes 2 or 3 arguments.
-* Index of channel (See below)
-* Mode ('a' = AUTOMATIC, 'h' = HOLD, 's' = SET)
-* A value to use when in SET mode.
-
-Channels are always specified in the same order, regardless of your channel mapping.
-
-* Roll is 0
-* Pitch is 1
-* Yaw is 2
-* Throttle is 3.
-* Aux channels are 4 onwards.
-
-Examples:
-
-To make Throttle channel have an automatic value when RX loss is detected:
-
-`rxfail 3 a`
-
-To make AUX4 have a value of 2000 when RX loss is detected:
-
-`rxfail 7 s 2000`
-
-To make AUX8 hold it's value when RX loss is detected:
-
-`rxfail 11 h`
-
-WARNING: Always make sure you test the behavior is as expected after configuring rxfail settings!
 
 #### `rx_min_usec`
 
@@ -238,32 +237,20 @@ To setup spectrum in the GUI:
 2. Move to the "Configuration" page and in the upper lefthand corner choose Serial RX as the receiver type.
 3. Below that choose the type of serial receiver that you are using.  Save and reboot.
 
-Using CLI:
-For Serial RX enable `RX_SERIAL` and set the `serialrx_provider` CLI setting as follows.
+#### Using CLI:
 
-| Serial RX Provider | Value |
-| ------------------ | ----- |
-| SPEKTRUM1024       | 0     |
-| SPEKTRUM2048       | 1     |
-| SBUS               | 2     |
-| SUMD               | 3     |
-| SUMH               | 4     |
-| XBUS_MODE_B        | 5     |
-| XBUS_MODE_B_RJ01   | 6     |
-| SERIALRX_IBUS      | 7     |
-| SERIALRX_JETIEXBUS | 8     |
-| SERIALRX_CRSF      | 9     |
+For Serial RX set the `receiver_type` and `serialrx_provider` setting as appropriate for your RX.
 
-### PPM/PWM input filtering.
+```
+# get rec
+receiver_type = SERIAL
+Allowed values: NONE, PPM, SERIAL, MSP, SPI, UIB
 
-Hardware input filtering can be enabled if you are experiencing interference on the signal sent via your PWM/PPM RX.
+# get serialrx
+serialrx_provider = SBUS
+Allowed values: SPEK1024, SPEK2048, SBUS, SUMD, IBUS, JETIEXBUS, CRSF, FPORT, SBUS_FAST, FPORT2, SRXL2
 
-Use the `input_filtering_mode` CLI setting to select a mode.
-
-| Value | Meaning   |
-| ----- | --------- |
-| 0     | Disabled  |
-| 1     | Enabled   |
+```
 
 ## Receiver configuration.
 

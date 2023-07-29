@@ -35,19 +35,10 @@
 #define BEEPER                  PC13
 #define BEEPER_INVERTED
 
-// #define USE_EXTI
-// #define GYRO_INT_EXTI            PC8
-// #define USE_MPU_DATA_READY_SIGNAL        // Not connected on FireworksV2
-
-#define USE_GYRO
-#define USE_ACC
-
-#define USE_GYRO_MPU6000
-#define USE_ACC_MPU6000
+#define USE_IMU_MPU6000
+#define IMU_MPU6000_ALIGN       CW90_DEG
 #define MPU6000_CS_PIN          PA4
 #define MPU6000_SPI_BUS         BUS_SPI1
-#define GYRO_MPU6000_ALIGN      CW90_DEG
-#define ACC_MPU6000_ALIGN       CW90_DEG
 
 // #define USE_MAG
 // #define MAG_I2C_BUS             BUS_I2C2
@@ -55,6 +46,7 @@
 // #define USE_MAG_QMC5883
 // #define USE_MAG_IST8310
 // #define USE_MAG_MAG3110
+// #define USE_MAG_LIS3MDL
 
 #define USE_BARO
 
@@ -121,7 +113,6 @@
 #define SPI3_MISO_PIN           PB4
 #define SPI3_MOSI_PIN           PB5
 
-#define USE_OSD
 #define USE_MAX7456
 #define MAX7456_SPI_BUS         BUS_SPI3
 #define MAX7456_CS_PIN          PA15
@@ -147,23 +138,16 @@
 #define DEFAULT_RX_TYPE                 RX_TYPE_SERIAL
 #define SERIALRX_PROVIDER               SERIALRX_SBUS
 
-// Disable PWM & PPM inputs
-#undef USE_RX_PWM
-#undef USE_RX_PPM
-
-// Pitot not supported
-#undef USE_PITOT
-
 // Set default UARTs
 #define TELEMETRY_UART                  SERIAL_PORT_SOFTSERIAL1
 #define SERIALRX_UART                   SERIAL_PORT_USART1
 #define SMARTAUDIO_UART                 SERIAL_PORT_USART2
 
-#define TARGET_CONFIG
-
 #define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
 // Number of available PWM outputs
+#define USE_DSHOT
+#define USE_ESC_SENSOR
 #define MAX_PWM_OUTPUT_PORTS    4
 #define TARGET_MOTOR_COUNT      4
 
@@ -172,6 +156,5 @@
 #define TARGET_IO_PORTC         0xffff
 #define TARGET_IO_PORTD         0xffff
 
-#define USABLE_TIMER_CHANNEL_COUNT 5
-
-#define USED_TIMERS             ( TIM_N(1) | TIM_N(3) | TIM_N(4) | TIM_N(8) )
+#define PITOT_I2C_BUS           BUS_I2C2
+#define TEMPERATURE_I2C_BUS     BUS_I2C2

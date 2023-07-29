@@ -19,15 +19,13 @@
 
 #include "common/time.h"
 
-//#define SCHEDULER_DEBUG
-
 typedef enum {
     TASK_PRIORITY_IDLE = 0,     // Disables dynamic scheduling, task is executed only if no other task is active this cycle
     TASK_PRIORITY_LOW = 1,
     TASK_PRIORITY_MEDIUM = 3,
     TASK_PRIORITY_MEDIUM_HIGH = 4,
     TASK_PRIORITY_HIGH = 5,
-    TASK_PRIORITY_REALTIME = 6,
+    TASK_PRIORITY_REALTIME = 18,
     TASK_PRIORITY_MAX = 255
 } cfTaskPriority_e;
 
@@ -51,19 +49,13 @@ typedef struct {
 typedef enum {
     /* Actual tasks */
     TASK_SYSTEM = 0,
-#ifdef USE_ASYNC_GYRO_PROCESSING
     TASK_PID,
     TASK_GYRO,
-    TASK_ACC,
-    TASK_ATTI,
-#else
-    TASK_GYROPID,
-#endif
     TASK_RX,
     TASK_SERIAL,
     TASK_BATTERY,
     TASK_TEMPERATURE,
-#ifdef BEEPER
+#if defined(BEEPER) || defined(USE_DSHOT)
     TASK_BEEPER,
 #endif
 #ifdef USE_LIGHTS
@@ -93,7 +85,7 @@ typedef enum {
 #ifdef USE_LED_STRIP
     TASK_LEDSTRIP,
 #endif
-#ifdef USE_PMW_SERVO_DRIVER
+#if defined(USE_SERVO_SBUS)
     TASK_PWMDRIVER,
 #endif
 #ifdef STACK_CHECK
@@ -105,19 +97,28 @@ typedef enum {
 #ifdef USE_CMS
     TASK_CMS,
 #endif
-#ifdef USE_OPTICAL_FLOW
+#ifdef USE_OPFLOW
     TASK_OPFLOW,
-#endif
-#ifdef USE_UAV_INTERCONNECT
-    TASK_UAV_INTERCONNECT,
 #endif
 #ifdef USE_RCDEVICE
     TASK_RCDEVICE,
 #endif
-#ifdef VTX_CONTROL
+#ifdef USE_VTX_CONTROL
     TASK_VTXCTRL,
 #endif
-
+#ifdef USE_PROGRAMMING_FRAMEWORK
+    TASK_PROGRAMMING_FRAMEWORK,
+#endif
+#ifdef USE_RPM_FILTER
+    TASK_RPM_FILTER,
+#endif
+    TASK_AUX,
+#if defined(USE_SMARTPORT_MASTER)
+    TASK_SMARTPORT_MASTER,
+#endif
+#ifdef USE_IRLOCK
+    TASK_IRLOCK,
+#endif
     /* Count of real tasks */
     TASK_COUNT,
 
@@ -143,10 +144,8 @@ typedef struct {
 
     /* Statistics */
     timeUs_t movingSumExecutionTime;  // moving sum over 32 samples
-#ifndef SKIP_TASK_STATISTICS
     timeUs_t maxExecutionTime;
     timeUs_t totalExecutionTime;    // total time consumed by task since boot
-#endif
 } cfTask_t;
 
 extern cfTask_t cfTasks[TASK_COUNT];
@@ -162,6 +161,7 @@ void schedulerResetTaskStatistics(cfTaskId_e taskId);
 void schedulerInit(void);
 void scheduler(void);
 void taskSystem(timeUs_t currentTimeUs);
+void taskRunRealtimeCallbacks(timeUs_t currentTimeUs);
 
 #define TASK_PERIOD_HZ(hz) (1000000 / (hz))
 #define TASK_PERIOD_MS(ms) ((ms) * 1000)

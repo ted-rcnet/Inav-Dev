@@ -22,11 +22,7 @@
 #define USE_GPS
 #define USE_GPS_PROTO_NMEA
 #define USE_GPS_PROTO_UBLOX
-#define USE_GPS_PROTO_I2C_NAV
-#define USE_GPS_PROTO_NAZA
-#define USE_GPS_PROTO_MTK
 #define USE_DASHBOARD
-#define USE_NAV
 #define USE_TELEMETRY
 #define USE_TELEMETRY_FRSKY
 #define USE_TELEMETRY_HOTT
@@ -35,7 +31,7 @@
 #define USE_TELEMETRY_LTM
 #define USE_LED_STRIP
 #define TRANSPONDER
-#define USE_FAKE_GYRO
+#define USE_IMU_FAKE
 #define USE_VCP
 #define USE_UART1
 #define USE_UART2

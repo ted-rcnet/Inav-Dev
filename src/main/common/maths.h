@@ -18,6 +18,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifndef sq
 #define sq(x) ((x)*(x))
@@ -55,6 +56,24 @@
 #define RADIANS_TO_CENTIDEGREES(angle) (((angle) * 100.0f) / RAD)
 #define CENTIDEGREES_TO_RADIANS(angle) (((angle) / 100.0f) * RAD)
 
+#define CENTIMETERS_TO_CENTIFEET(cm)            (cm / 0.3048)
+#define CENTIMETERS_TO_FEET(cm)                 (cm / 30.48)
+#define CENTIMETERS_TO_METERS(cm)               (cm / 100)
+
+#define METERS_TO_CENTIMETERS(m)                (m * 100)
+
+#define CMSEC_TO_CENTIMPH(cms)      (cms * 2.2369363)
+#define CMSEC_TO_CENTIKPH(cms)      (cms * 3.6)
+#define CMSEC_TO_CENTIKNOTS(cms)    (cms * 1.943845)
+
+#define C_TO_KELVIN(temp) (temp + 273.15f)
+
+// Standard Sea Level values
+// Ref:https://en.wikipedia.org/wiki/Standard_sea_level
+#define SSL_AIR_DENSITY         1.225f // kg/m^3
+#define SSL_AIR_PRESSURE 101325.01576f // Pascal
+#define SSL_AIR_TEMPERATURE    288.15f // K
+
 // copied from https://code.google.com/p/cxutil/source/browse/include/cxutil/utility.h#70
 #define _CHOOSE2(binoper, lexpr, lvar, rexpr, rvar)         \
     ( __extension__ ({                                      \
@@ -80,6 +99,8 @@
     }))
 #define _ABS_I(x, var) _ABS_II(x, var)
 #define ABS(x) _ABS_I(x, _CHOOSE_VAR(_abs, __COUNTER__))
+
+#define power3(x) ((x)*(x)*(x))
 
 // Floating point Euler angles.
 typedef struct fp_angles {
@@ -118,13 +139,14 @@ typedef struct {
 void sensorCalibrationResetState(sensorCalibrationState_t * state);
 void sensorCalibrationPushSampleForOffsetCalculation(sensorCalibrationState_t * state, int32_t sample[3]);
 void sensorCalibrationPushSampleForScaleCalculation(sensorCalibrationState_t * state, int axis, int32_t sample[3], int target);
-void sensorCalibrationSolveForOffset(sensorCalibrationState_t * state, float result[3]);
-void sensorCalibrationSolveForScale(sensorCalibrationState_t * state, float result[3]);
+bool sensorCalibrationSolveForOffset(sensorCalibrationState_t * state, float result[3]);
+bool sensorCalibrationSolveForScale(sensorCalibrationState_t * state, float result[3]);
 
 int gcd(int num, int denom);
 int32_t applyDeadband(int32_t value, int32_t deadband);
+int32_t applyDeadbandRescaled(int32_t value, int32_t deadband, int32_t min, int32_t max);
 
-int constrain(int amt, int low, int high);
+int32_t constrain(int32_t amt, int32_t low, int32_t high);
 float constrainf(float amt, float low, float high);
 
 void devClear(stdev_t *dev);
@@ -153,7 +175,9 @@ float cos_approx(float x);
 float atan2_approx(float y, float x);
 float acos_approx(float x);
 #define tan_approx(x)       (sin_approx(x) / cos_approx(x))
+#define asin_approx(x)      (M_PIf / 2 - acos_approx(x))
 #else
+#define asin_approx(x)      asinf(x)
 #define sin_approx(x)       sinf(x)
 #define cos_approx(x)       cosf(x)
 #define atan2_approx(y,x)   atan2f(y,x)
@@ -164,3 +188,6 @@ float acos_approx(float x);
 void arraySubInt32(int32_t *dest, int32_t *array1, int32_t *array2, int count);
 
 float bellCurve(const float x, const float curveWidth);
+float fast_fsqrtf(const double value);
+float calc_length_pythagorean_2D(const float firstElement, const float secondElement);
+float calc_length_pythagorean_3D(const float firstElement, const float secondElement, const float thirdElement);

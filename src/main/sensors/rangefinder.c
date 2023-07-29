@@ -34,54 +34,41 @@
 #include "config/parameter_group_ids.h"
 
 #include "drivers/io.h"
-#include "drivers/logging.h"
 #include "drivers/time.h"
 #include "drivers/rangefinder/rangefinder.h"
-#include "drivers/rangefinder/rangefinder_hcsr04.h"
 #include "drivers/rangefinder/rangefinder_srf10.h"
-#include "drivers/rangefinder/rangefinder_hcsr04_i2c.h"
 #include "drivers/rangefinder/rangefinder_vl53l0x.h"
+#include "drivers/rangefinder/rangefinder_vl53l1x.h"
+#include "drivers/rangefinder/rangefinder_virtual.h"
+#include "drivers/rangefinder/rangefinder_us42.h"
+#include "drivers/rangefinder/rangefinder_tof10120_i2c.h"
 
 #include "fc/config.h"
 #include "fc/runtime_config.h"
+#include "fc/settings.h"
 
 #include "sensors/sensors.h"
 #include "sensors/rangefinder.h"
 #include "sensors/battery.h"
 
-#include "scheduler/scheduler.h"
+#include "io/rangefinder.h"
 
-#include "uav_interconnect/uav_interconnect.h"
+#include "scheduler/scheduler.h"
 
 rangefinder_t rangefinder;
 
 #define RANGEFINDER_HARDWARE_TIMEOUT_MS         500     // Accept 500ms of non-responsive sensor, report HW failure otherwise
 
 #define RANGEFINDER_DYNAMIC_THRESHOLD           600     //Used to determine max. usable rangefinder disatance
-#define RANGEFINDER_DYNAMIC_FACTOR              75    
+#define RANGEFINDER_DYNAMIC_FACTOR              75
 
 #ifdef USE_RANGEFINDER
-PG_REGISTER_WITH_RESET_TEMPLATE(rangefinderConfig_t, rangefinderConfig, PG_RANGEFINDER_CONFIG, 1);
+PG_REGISTER_WITH_RESET_TEMPLATE(rangefinderConfig_t, rangefinderConfig, PG_RANGEFINDER_CONFIG, 3);
 
 PG_RESET_TEMPLATE(rangefinderConfig_t, rangefinderConfig,
-    .rangefinder_hardware = RANGEFINDER_NONE,
-    .use_median_filtering = 0,
+    .rangefinder_hardware = SETTING_RANGEFINDER_HARDWARE_DEFAULT,
+    .use_median_filtering = SETTING_RANGEFINDER_MEDIAN_FILTER_DEFAULT,
 );
-
-const rangefinderHardwarePins_t * rangefinderGetHardwarePins(void)
-{
-    static rangefinderHardwarePins_t rangefinderHardwarePins;
-
-#if defined(RANGEFINDER_HCSR04_TRIGGER_PIN)
-    rangefinderHardwarePins.triggerTag = IO_TAG(RANGEFINDER_HCSR04_TRIGGER_PIN);
-    rangefinderHardwarePins.echoTag = IO_TAG(RANGEFINDER_HCSR04_ECHO_PIN);
-#else
-    // No Trig/Echo hardware rangefinder
-    rangefinderHardwarePins.triggerTag = IO_TAG(NONE);
-    rangefinderHardwarePins.echoTag = IO_TAG(NONE);
-#endif
-    return &rangefinderHardwarePins;
-}
 
 /*
  * Detect which rangefinder is present
@@ -92,32 +79,11 @@ static bool rangefinderDetect(rangefinderDev_t * dev, uint8_t rangefinderHardwar
     requestedSensors[SENSOR_INDEX_RANGEFINDER] = rangefinderHardwareToUse;
 
     switch (rangefinderHardwareToUse) {
-        case RANGEFINDER_HCSR04:
-#ifdef USE_RANGEFINDER_HCSR04
-            {
-                const rangefinderHardwarePins_t *rangefinderHardwarePins = rangefinderGetHardwarePins();
-                if (hcsr04Detect(dev, rangefinderHardwarePins)) {   // FIXME: Do actual detection if HC-SR04 is plugged in
-                    rangefinderHardware = RANGEFINDER_HCSR04;
-                    rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(RANGEFINDER_HCSR04_TASK_PERIOD_MS));
-                }
-            }
-#endif
-            break;
-
         case RANGEFINDER_SRF10:
 #ifdef USE_RANGEFINDER_SRF10
             if (srf10Detect(dev)) {
                 rangefinderHardware = RANGEFINDER_SRF10;
                 rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(RANGEFINDER_SRF10_TASK_PERIOD_MS));
-            }
-#endif
-            break;
-
-            case RANGEFINDER_HCSR04I2C:
-#ifdef USE_RANGEFINDER_HCSR04_I2C
-            if (hcsr04i2c0Detect(dev)) {
-                rangefinderHardware = RANGEFINDER_HCSR04I2C;
-                rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(RANGEFINDER_HCSR04_i2C_TASK_PERIOD_MS));
             }
 #endif
             break;
@@ -131,21 +97,62 @@ static bool rangefinderDetect(rangefinderDev_t * dev, uint8_t rangefinderHardwar
 #endif
             break;
 
-        case RANGEFINDER_UIB:
-#if defined(USE_RANGEFINDER_UIB)
-            if (uibRangefinderDetect(dev)) {
-                rangefinderHardware = RANGEFINDER_UIB;
-                rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(RANGEFINDER_UIB_TASK_PERIOD_MS));
+            case RANGEFINDER_VL53L1X:
+#if defined(USE_RANGEFINDER_VL53L1X)
+            if (vl53l1xDetect(dev)) {
+                rangefinderHardware = RANGEFINDER_VL53L1X;
+                rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(RANGEFINDER_VL53L1X_TASK_PERIOD_MS));
             }
 #endif
             break;
 
-        case RANGEFINDER_NONE:
+        case RANGEFINDER_MSP:
+#if defined(USE_RANGEFINDER_MSP)
+            if (virtualRangefinderDetect(dev, &rangefinderMSPVtable)) {
+                rangefinderHardware = RANGEFINDER_MSP;
+                rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(RANGEFINDER_VIRTUAL_TASK_PERIOD_MS));
+            }
+#endif
+            break;
+
+        case RANGEFINDER_BENEWAKE:
+#if defined(USE_RANGEFINDER_BENEWAKE)
+            if (virtualRangefinderDetect(dev, &rangefinderBenewakeVtable)) {
+                rangefinderHardware = RANGEFINDER_BENEWAKE;
+                rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(RANGEFINDER_VIRTUAL_TASK_PERIOD_MS));
+            }
+#endif
+            break;
+
+            case RANGEFINDER_US42:
+#ifdef USE_RANGEFINDER_US42
+            if (us42Detect(dev)) {
+                rangefinderHardware = RANGEFINDER_US42;
+                rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(RANGEFINDER_US42_TASK_PERIOD_MS));
+            }
+#endif
+            break;
+
+            case RANGEFINDER_TOF10102I2C:
+#ifdef USE_RANGEFINDER_TOF10120_I2C
+            if (tof10120Detect(dev)) {
+                rangefinderHardware = RANGEFINDER_TOF10102I2C;
+                rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(RANGEFINDER_TOF10120_I2C_TASK_PERIOD_MS));
+            }
+#endif
+            break;
+            case RANGEFINDER_FAKE:
+#if defined(USE_RANGEFINDER_FAKE)
+            if(virtualRangefinderDetect(dev, &rangefinderFakeVtable)) {
+                rangefinderHardware = RANGEFINDER_FAKE;
+                rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(RANGEFINDER_VIRTUAL_TASK_PERIOD_MS));
+            }
+#endif
+            break;
+            case RANGEFINDER_NONE:
             rangefinderHardware = RANGEFINDER_NONE;
             break;
     }
-
-    addBootlogEvent6(BOOT_EVENT_RANGEFINDER_DETECTION, BOOT_EVENT_FLAGS_NONE, rangefinderHardware, 0, 0, 0);
 
     if (rangefinderHardware == RANGEFINDER_NONE) {
         sensorsClear(SENSOR_RANGEFINDER);
@@ -155,12 +162,6 @@ static bool rangefinderDetect(rangefinderDev_t * dev, uint8_t rangefinderHardwar
     detectedSensors[SENSOR_INDEX_RANGEFINDER] = rangefinderHardware;
     sensorsSet(SENSOR_RANGEFINDER);
     return true;
-}
-
-void rangefinderResetDynamicThreshold(void)
-{
-    rangefinder.snrThresholdReached = false;
-    rangefinder.dynamicDistanceThreshold = 0;
 }
 
 bool rangefinderInit(void)
@@ -174,9 +175,6 @@ bool rangefinderInit(void)
     rangefinder.calculatedAltitude = RANGEFINDER_OUT_OF_RANGE;
     rangefinder.maxTiltCos = cos_approx(DECIDEGREES_TO_RADIANS(rangefinder.dev.detectionConeExtendedDeciDegrees / 2.0f));
     rangefinder.lastValidResponseTimeMs = millis();
-    rangefinder.snr = 0;
-
-    rangefinderResetDynamicThreshold();
 
     return true;
 }
@@ -199,35 +197,6 @@ static int32_t applyMedianFilter(int32_t newReading)
     return medianFilterReady ? quickMedianFilter5(filterSamples) : newReading;
 }
 
-static int16_t computePseudoSnr(int32_t newReading) {
-    #define SNR_SAMPLES 5
-    static int16_t snrSamples[SNR_SAMPLES];
-    static uint8_t snrSampleIndex = 0;
-    static int32_t previousReading = RANGEFINDER_OUT_OF_RANGE;
-    static bool snrReady = false;
-    int16_t pseudoSnr = 0;
-
-    snrSamples[snrSampleIndex] = constrain((int)(pow(newReading - previousReading, 2) / 10), 0, 6400);
-    ++snrSampleIndex;
-    if (snrSampleIndex == SNR_SAMPLES) {
-        snrSampleIndex = 0;
-        snrReady = true;
-    }
-
-    previousReading = newReading;
-
-    if (snrReady) {
-
-        for (uint8_t i = 0; i < SNR_SAMPLES; i++) {
-            pseudoSnr += snrSamples[i];
-        }
-
-        return constrain(pseudoSnr, 0, 32000);
-    } else {
-        return RANGEFINDER_OUT_OF_RANGE;
-    }
-}
-
 /*
  * This is called periodically by the scheduler
  */
@@ -237,35 +206,7 @@ timeDelta_t rangefinderUpdate(void)
         rangefinder.dev.update(&rangefinder.dev);
     }
 
-    return rangefinder.dev.delayMs * 1000;  // to microseconds
-}
-
-bool isSurfaceAltitudeValid() {
-
-    /*
-     * Preconditions: raw and calculated altidude > 0
-     * SNR lower than threshold
-     */ 
-    if (
-        rangefinder.calculatedAltitude > 0 &&
-        rangefinder.rawAltitude > 0 &&
-        rangefinder.snr < RANGEFINDER_DYNAMIC_THRESHOLD
-    ) {
-
-        /*
-         * When critical altitude was determined, distance reported by rangefinder
-         * has to be lower than it to assume healthy readout
-         */
-        if (rangefinder.snrThresholdReached) {
-            return (rangefinder.rawAltitude < rangefinder.dynamicDistanceThreshold);
-        } else {
-            return true;
-        }
-
-    } else {
-        return false;
-    }
-
+    return MS2US(rangefinder.dev.delayMs);
 }
 
 /**
@@ -297,28 +238,6 @@ bool rangefinderProcess(float cosTiltAngle)
             // Invalid response / hardware failure
             rangefinder.rawAltitude = RANGEFINDER_HARDWARE_FAILURE;
         }
-
-        rangefinder.snr = computePseudoSnr(distance);
-
-        if (rangefinder.snrThresholdReached == false && rangefinder.rawAltitude > 0) {
-
-            if (rangefinder.snr < RANGEFINDER_DYNAMIC_THRESHOLD && rangefinder.dynamicDistanceThreshold < rangefinder.rawAltitude) {
-                rangefinder.dynamicDistanceThreshold = rangefinder.rawAltitude * RANGEFINDER_DYNAMIC_FACTOR / 100;
-            }
-
-            if (rangefinder.snr >= RANGEFINDER_DYNAMIC_THRESHOLD) {
-                rangefinder.snrThresholdReached = true;
-            }
-
-        }
-
-        DEBUG_SET(DEBUG_RANGEFINDER, 3, rangefinder.snr);
-
-        DEBUG_SET(DEBUG_RANGEFINDER_QUALITY, 0, rangefinder.rawAltitude);
-        DEBUG_SET(DEBUG_RANGEFINDER_QUALITY, 1, rangefinder.snrThresholdReached);
-        DEBUG_SET(DEBUG_RANGEFINDER_QUALITY, 2, rangefinder.dynamicDistanceThreshold);
-        DEBUG_SET(DEBUG_RANGEFINDER_QUALITY, 3, isSurfaceAltitudeValid());
-
     }
     else {
         // Bad configuration
@@ -336,9 +255,6 @@ bool rangefinderProcess(float cosTiltAngle)
     } else {
         rangefinder.calculatedAltitude = rangefinder.rawAltitude * cosTiltAngle;
     }
-
-    DEBUG_SET(DEBUG_RANGEFINDER, 1, rangefinder.rawAltitude);
-    DEBUG_SET(DEBUG_RANGEFINDER, 2, rangefinder.calculatedAltitude);
 
     return true;
 }
@@ -361,4 +277,3 @@ bool rangefinderIsHealthy(void)
     return (millis() - rangefinder.lastValidResponseTimeMs) < RANGEFINDER_HARDWARE_TIMEOUT_MS;
 }
 #endif
-

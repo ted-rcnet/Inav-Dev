@@ -20,17 +20,16 @@
 #include <string.h>
 
 #include "platform.h"
-
 #include "build/build_config.h"
 #include "build/debug.h"
-
 #include "drivers/time.h"
-
-#include "drivers/io.h"
-#include "drivers/adc.h"
-#include "drivers/adc_impl.h"
-
 #include "common/utils.h"
+
+#include "drivers/adc.h"
+#if defined(USE_ADC) && !defined(SITL_BUILD)
+#include "drivers/io.h"
+
+#include "drivers/adc_impl.h"
 
 #ifndef ADC_INSTANCE
 #define ADC_INSTANCE                ADC1
@@ -51,11 +50,15 @@
 
 #ifdef USE_ADC
 
+#if defined(USE_ADC_AVERAGING)
+static uint8_t activeChannelCount[ADCDEV_COUNT] = {0};
+#endif
+
 static int adcFunctionMap[ADC_FUNCTION_COUNT];
 adc_config_t adcConfig[ADC_CHN_COUNT];  // index 0 is dummy for ADC_CHN_NONE
-volatile uint16_t adcValues[ADCDEV_COUNT][ADC_CHN_COUNT];
+volatile ADC_VALUES_ALIGNMENT(uint16_t adcValues[ADCDEV_COUNT][ADC_CHN_COUNT * ADC_AVERAGE_N_SAMPLES]);
 
-uint8_t adcChannelByTag(ioTag_t ioTag)
+uint32_t adcChannelByTag(ioTag_t ioTag)
 {
     for (uint8_t i = 0; i < ARRAYLEN(adcTagMap); i++) {
         if (ioTag == adcTagMap[i].tag)
@@ -82,12 +85,21 @@ uint16_t adcGetChannel(uint8_t function)
         return 0;
 
     if (adcConfig[channel].adcDevice != ADCINVALID && adcConfig[channel].enabled) {
+#if !defined(USE_ADC_AVERAGING)
         return adcValues[adcConfig[channel].adcDevice][adcConfig[channel].dmaIndex];
+#else
+        uint32_t acc = 0;
+        for (int i = 0; i < ADC_AVERAGE_N_SAMPLES; i++) {
+            acc += adcValues[adcConfig[channel].adcDevice][adcConfig[channel].dmaIndex + i * activeChannelCount[adcConfig[channel].adcDevice]];
+        }
+        return acc / ADC_AVERAGE_N_SAMPLES;
+#endif
     } else {
         return 0;
     }
 }
 
+#if defined(ADC_CHANNEL_1_PIN) || defined(ADC_CHANNEL_2_PIN) || defined(ADC_CHANNEL_3_PIN) || defined(ADC_CHANNEL_4_PIN)
 static bool isChannelInUse(int channel)
 {
     for (int i = 0; i < ADC_FUNCTION_COUNT; i++) {
@@ -97,6 +109,7 @@ static bool isChannelInUse(int channel)
 
     return false;
 }
+#endif
 
 #if !defined(ADC_CHANNEL_1_PIN) || !defined(ADC_CHANNEL_2_PIN) || !defined(ADC_CHANNEL_3_PIN) || !defined(ADC_CHANNEL_4_PIN)
 static void disableChannelMapping(int channel)
@@ -128,6 +141,9 @@ void adcInit(drv_adc_config_t *init)
         adcConfig[ADC_CHN_1].adcDevice = adcDeviceByInstance(ADC_CHANNEL_1_INSTANCE);
         if (adcConfig[ADC_CHN_1].adcDevice != ADCINVALID) {
             adcConfig[ADC_CHN_1].tag = IO_TAG(ADC_CHANNEL_1_PIN);
+#if defined(USE_ADC_AVERAGING)
+            activeChannelCount[adcConfig[ADC_CHN_1].adcDevice] += 1;
+#endif
         }
     }
 #else
@@ -139,6 +155,9 @@ void adcInit(drv_adc_config_t *init)
         adcConfig[ADC_CHN_2].adcDevice = adcDeviceByInstance(ADC_CHANNEL_2_INSTANCE);
         if (adcConfig[ADC_CHN_2].adcDevice != ADCINVALID) {
             adcConfig[ADC_CHN_2].tag = IO_TAG(ADC_CHANNEL_2_PIN);
+#if defined(USE_ADC_AVERAGING)
+            activeChannelCount[adcConfig[ADC_CHN_2].adcDevice] += 1;
+#endif
         }
     }
 #else
@@ -150,6 +169,9 @@ void adcInit(drv_adc_config_t *init)
         adcConfig[ADC_CHN_3].adcDevice = adcDeviceByInstance(ADC_CHANNEL_3_INSTANCE);
         if (adcConfig[ADC_CHN_3].adcDevice != ADCINVALID) {
             adcConfig[ADC_CHN_3].tag = IO_TAG(ADC_CHANNEL_3_PIN);
+#if defined(USE_ADC_AVERAGING)
+            activeChannelCount[adcConfig[ADC_CHN_3].adcDevice] += 1;
+#endif
         }
     }
 #else
@@ -161,6 +183,9 @@ void adcInit(drv_adc_config_t *init)
         adcConfig[ADC_CHN_4].adcDevice = adcDeviceByInstance(ADC_CHANNEL_4_INSTANCE);
         if (adcConfig[ADC_CHN_4].adcDevice != ADCINVALID) {
             adcConfig[ADC_CHN_4].tag = IO_TAG(ADC_CHANNEL_4_PIN);
+#if defined(USE_ADC_AVERAGING)
+            activeChannelCount[adcConfig[ADC_CHN_4].adcDevice] += 1;
+#endif
         }
     }
 #else
@@ -179,4 +204,24 @@ uint16_t adcGetChannel(uint8_t channel)
     return 0;
 }
 
+#endif
+
+#else // USE_ADC
+
+bool adcIsFunctionAssigned(uint8_t function)
+{
+    UNUSED(function);
+    return false;
+}
+
+void adcInit(drv_adc_config_t *init)
+{
+    UNUSED(init);
+}
+
+uint16_t adcGetChannel(uint8_t channel)
+{
+    UNUSED(channel);
+    return 0;
+}
 #endif

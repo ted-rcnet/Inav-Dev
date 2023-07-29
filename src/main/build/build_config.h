@@ -44,5 +44,23 @@
 #else
 #define FASTRAM                     __attribute__ ((section(".fastram_bss"), aligned(4)))
 #endif
+
+#if defined (STM32F4) || defined (STM32F7)
+#define EXTENDED_FASTRAM FASTRAM
+#else
+#define EXTENDED_FASTRAM
+#endif
+
+#if defined (STM32H7)
+#define DMA_RAM __attribute__ ((section(".DMA_RAM")))
+#define SLOW_RAM __attribute__ ((section(".SLOW_RAM")))
+#elif defined (AT32F43x)
+#define DMA_RAM __attribute__ ((section(".DMA_RAM")))
+#define SLOW_RAM __attribute__ ((section(".SLOW_RAM")))
+#else
+#define DMA_RAM
+#define SLOW_RAM
+#endif
+
 #define STATIC_FASTRAM              static FASTRAM
 #define STATIC_FASTRAM_UNIT_TESTED  STATIC_UNIT_TESTED FASTRAM

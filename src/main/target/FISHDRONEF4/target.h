@@ -28,9 +28,6 @@
 // *************** BEEPER *****************************
 #define BEEPER                  PC15
 
-// *************** INVERTER *****************************
-#define INVERTER_PIN_UART2     PB2
-
 // *************** SPI *****************************
 #define USE_SPI
 
@@ -41,23 +38,11 @@
 #define MPU9250_CS_PIN          PA4
 #define MPU9250_SPI_BUS         BUS_SPI1
 
-#define USE_ACC
-#define USE_ACC_MPU6500
-#define GYRO_MPU6500_ALIGN      CW180_DEG
-#define USE_ACC_MPU9250
-#define GYRO_MPU9250_ALIGN      CW180_DEG
+#define USE_IMU_MPU6500
+#define IMU_MPU6500_ALIGN       CW180_DEG
 
-#define USE_GYRO
-#define USE_GYRO_MPU6500
-#define ACC_MPU6500_ALIGN       CW180_DEG
-#define USE_GYRO_MPU9250
-#define ACC_MPU9250_ALIGN       CW180_DEG
-
-// MPU6500 interrupts
-#define USE_EXTI
-#define GYRO_INT_EXTI            PC4
-#define USE_MPU_DATA_READY_SIGNAL
-#define ENSURE_MPU_DATA_READY_IS_LOW
+#define USE_IMU_MPU9250
+#define IMU_MPU9250_ALIGN       CW180_DEG
 
 // *************** Compass *****************************
 #define USE_MAG
@@ -68,7 +53,10 @@
 #define USE_MAG_IST8310
 #define USE_MAG_IST8308
 #define USE_MAG_QMC5883
-#define MAG_IST8310_ALIGN CW270_DEG
+#define USE_MAG_LIS3MDL
+
+// *************** Temperature sensor *****************
+#define TEMPERATURE_I2C_BUS     BUS_I2C1
 
 // *************** BARO *****************************
 #define USE_BARO
@@ -82,7 +70,6 @@
 #define SPI2_MISO_PIN   PC2
 #define SPI2_MOSI_PIN   PC3
 
-#define USE_OSD
 #define USE_MAX7456
 #define MAX7456_SPI_BUS         BUS_SPI2
 #define MAX7456_CS_PIN          SPI2_NSS_PIN
@@ -95,15 +82,11 @@
 #define SPI3_NSS_PIN    PB6
 
 #define USE_SDCARD
+#define USE_SDCARD_SPI
 #define SDCARD_DETECT_INVERTED
-#define SDCARD_DETECT_PIN                   PB7
-#define SDCARD_SPI_INSTANCE                 SPI3
-#define SDCARD_SPI_CS_PIN                   PB6
-
-#define SDCARD_DMA_CHANNEL_TX               DMA1_Stream5
-#define SDCARD_DMA_CHANNEL_TX_COMPLETE_FLAG DMA_FLAG_TCIF5
-#define SDCARD_DMA_CLK                      RCC_AHB1Periph_DMA1
-#define SDCARD_DMA_CHANNEL                  DMA_Channel_0
+#define SDCARD_DETECT_PIN       PB7
+#define SDCARD_SPI_BUS          BUS_SPI3
+#define SDCARD_CS_PIN           PB6
 
 // *************** Flash *****************************
 #define M25P16_CS_PIN           PA15
@@ -114,15 +97,17 @@
 // *************** UART *****************************
 #define USE_VCP
 
+#define USE_UART_INVERTER
+
 // provide for Telemetry module
 #define USE_UART1
 #define UART1_RX_PIN            PA10
 #define UART1_TX_PIN            PA9
 
-// provide for xBUS Receiver
 #define USE_UART2
 #define UART2_RX_PIN            PA3
 #define UART2_TX_PIN            PA2
+#define INVERTER_PIN_UART2_RX   PB2
 
 // provide for GPS module
 #define USE_UART5
@@ -134,14 +119,6 @@
 // *************** WS2811 *****************************
 #define USE_LED_STRIP
 #define WS2811_PIN                      PB1
-#define WS2811_TIMER                    TIM3
-#define WS2811_TIMER_CHANNEL            TIM_Channel_4
-#define WS2811_DMA_HANDLER_IDENTIFER    DMA1_ST2_HANDLER
-#define WS2811_DMA_STREAM               DMA1_Stream2
-#define WS2811_DMA_FLAG                 DMA_FLAG_TCIF2
-#define WS2811_DMA_IT                   DMA_IT_TCIF2
-#define WS2811_DMA_CHANNEL              DMA_Channel_5
-#define WS2811_DMA_IRQ                  DMA1_Stream2_IRQn
 
 // *************** IIC *****************************
 #define USE_I2C
@@ -161,15 +138,9 @@
 
 // *************** RANGEFINDER *****************************
 // #define USE_RANGEFINDER
-// #define USE_RANGEFINDER_HCSR04
-// #define RANGEFINDER_HCSR04_TRIGGER_PIN       PB10
-// #define RANGEFINDER_HCSR04_ECHO_PIN          PB11
 // #define USE_RANGEFINDER_SRF10
 
 // *************** NAV *****************************
-#define USE_NAV
-#define NAV_AUTO_MAG_DECLINATION
-#define NAV_GPS_GLITCH_DETECTION
 #define NAV_MAX_WAYPOINTS       60
 
 // *************** Others *****************************
@@ -190,6 +161,3 @@
 #define TARGET_IO_PORTB 0xffff
 #define TARGET_IO_PORTC 0xffff
 #define TARGET_IO_PORTD (BIT(2))
-
-#define USABLE_TIMER_CHANNEL_COUNT 13
-#define USED_TIMERS  ( TIM_N(1) | TIM_N(2) | TIM_N(3) | TIM_N(5) | TIM_N(8) | TIM_N(12) )

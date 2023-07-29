@@ -30,36 +30,25 @@
 #define MPU6000_CS_PIN          PA4
 #define MPU6000_SPI_BUS         BUS_SPI1
 
-#define USE_ACC
-#define USE_ACC_MPU6000
-#define ACC_MPU6000_ALIGN CW270_DEG
-
-#define USE_GYRO
-#define USE_GYRO_MPU6000
-#define GYRO_MPU6000_ALIGN CW270_DEG
-
-// MPU6000 interrupts
-#define USE_MPU_DATA_READY_SIGNAL
-#define GYRO_INT_EXTI PC4
-#define USE_EXTI
+#define USE_IMU_MPU6000
+#define IMU_MPU6000_ALIGN CW270_DEG
 
 #define USE_MAG
 #define MAG_I2C_BUS             BUS_I2C2
-#define MAG_HMC5883_ALIGN       CW270_DEG_FLIP
 #define USE_MAG_HMC5883
 #define USE_MAG_QMC5883
 #define USE_MAG_IST8310
 #define USE_MAG_IST8308
 #define USE_MAG_MAG3110
+#define USE_MAG_LIS3MDL
+
+#define TEMPERATURE_I2C_BUS     BUS_I2C2
 
 #define USE_BARO
 #define BARO_I2C_BUS            BUS_I2C2
 #define USE_BARO_MS5611
 
-#define USE_PITOT_MS4525
 #define PITOT_I2C_BUS           BUS_I2C2
-
-#define USABLE_TIMER_CHANNEL_COUNT 16
 
 #define USE_VCP
 #define VBUS_SENSING_PIN PA8
@@ -116,7 +105,6 @@
 #define USE_FLASH_M25P16
 #define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
 
-#define USE_OSD
 #define USE_MAX7456
 #define MAX7456_SPI_BUS         BUS_SPI3
 #define MAX7456_CS_PIN          SPI3_NSS_PIN
@@ -141,5 +129,3 @@
 #define TARGET_IO_PORTC 0xffff
 #define TARGET_IO_PORTD 0xffff
 #define TARGET_IO_PORTE 0xffff
-
-#define USED_TIMERS  ( TIM_N(1) | TIM_N(2) | TIM_N(3) | TIM_N(4) | TIM_N(5) | TIM_N(8) | TIM_N(12))

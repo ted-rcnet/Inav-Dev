@@ -20,13 +20,9 @@
 
 #include <platform.h>
 
-#ifdef TARGET_CONFIG
 #include "fc/config.h"
-
 #include "config/feature.h"
-
 #include "rx/rx.h"
-
 #include "hardware_revision.h"
 
 void targetConfiguration(void)
@@ -35,6 +31,5 @@ void targetConfiguration(void)
         featureSet(FEATURE_OSD);
     }
 
-    rxConfigMutable()->halfDuplex = false;
+    rxConfigMutable()->halfDuplex = TRISTATE_OFF;
 }
-#endif

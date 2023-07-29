@@ -22,11 +22,18 @@
 
 #define ARRAYLEN(x) (sizeof(x) / sizeof((x)[0]))
 #define ARRAYEND(x) (&(x)[ARRAYLEN(x)])
+#define ZERO_FARRAY(a) memset(a, 0, sizeof(a))
 
 #define CONST_CAST(type, value) ((type)(value))
 
 #define CONCAT_HELPER(x,y) x ## y
 #define CONCAT(x,y) CONCAT_HELPER(x, y)
+
+#define CONCAT3_HELPER(x, y, z) x ## y ## z
+#define CONCAT3(x, y, z) CONCAT3_HELPER(x, y, z)
+
+#define CONCAT4_HELPER(x, y, z, w) x ## y ## z ## w
+#define CONCAT4(x, y, z, w) CONCAT4_HELPER(x, y, z, w)
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
@@ -34,12 +41,20 @@
 #define EXPAND_I(x) x
 #define EXPAND(x) EXPAND_I(x)
 
+// Expand all argumens and call macro with them. When expansion of some argument contains ',', it will be passed as multiple arguments
+// #define TAKE3(_1,_2,_3) CONCAT3(_1,_2,_3)
+// #define MULTI2 A,B
+// PP_CALL(TAKE3, MULTI2, C) expands to ABC
+#define PP_CALL(macro, ...) macro(__VA_ARGS__)
+
 #if !defined(UNUSED)
 #define UNUSED(x) (void)(x)
 #endif
+
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
 #define BIT(x) (1 << (x))
+#define GET_BIT(value, bit) ((value >> bit) & 1)
 
 #define STATIC_ASSERT(condition, name) \
     typedef char assert_failed_ ## name [(condition) ? 1 : -1 ] __attribute__((unused))
@@ -64,11 +79,6 @@ http://resnet.uoregon.edu/~gurney_j/jmpc/bitwise.html
      + LOG2_32BIT((v)*1L >>16*((v)/2L>>31 > 0) \
                          >>16*((v)/2L>>31 > 0)))
 
-#if 0
-// ISO C version, but no type checking
-#define container_of(ptr, type, member) \
-                      ((type *) ((char *)(ptr) - offsetof(type, member)))
-#else
 // non ISO variant from linux kernel; checks ptr type, but triggers 'ISO C forbids braced-groups within expressions [-Wpedantic]'
 //  __extension__ is here to disable this warning
 #define container_of(ptr, type, member)  ( __extension__ ({     \
@@ -83,12 +93,9 @@ static inline int32_t cmp32(uint32_t a, uint32_t b) { return a-b; }
 #ifdef UNIT_TEST
 // Call memcpy when building unittest - this is easier that asm symbol name mangling (symbols start with _underscore on win32)
 #include <string.h>
-static inline void  memcpy_fn ( void * destination, const void * source, size_t num ) { memcpy(destination, source, num); };
+static inline void  memcpy_fn(void *destination, const void *source, size_t num) { memcpy(destination, source, num); };
 #else
-void * memcpy_fn ( void * destination, const void * source, size_t num ) asm("memcpy");
-#endif
-
-
+void *memcpy_fn(void *destination, const void *source, size_t num) asm("memcpy");
 #endif
 
 #if __GNUC__ > 6
@@ -97,4 +104,8 @@ void * memcpy_fn ( void * destination, const void * source, size_t num ) asm("me
 #define FALLTHROUGH do {} while(0)
 #endif
 
+#define UNREACHABLE() __builtin_unreachable()
+
 #define ALIGNED(x) __attribute__ ((aligned(x)))
+
+#define PACKED __attribute__((packed))

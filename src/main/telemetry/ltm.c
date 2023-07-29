@@ -55,7 +55,6 @@
 #include "flight/mixer.h"
 #include "flight/pid.h"
 
-#include "io/gimbal.h"
 #include "io/gps.h"
 #include "io/ledstrip.h"
 #include "io/serial.h"
@@ -131,11 +130,7 @@ void ltm_gframe(sbuf_t *dst)
         ltm_gs = gpsSol.groundSpeed / 100;
     }
 
-#if defined(USE_NAV)
     ltm_alt = getEstimatedActualPosition(Z); // cm
-#else
-    ltm_alt = sensors(SENSOR_GPS) ? gpsSol.llh.alt : 0; // cm
-#endif
 
     sbufWriteU8(dst, 'G');
     sbufWriteU32(dst, ltm_lat);
@@ -159,26 +154,32 @@ void ltm_gframe(sbuf_t *dst)
 
 void ltm_sframe(sbuf_t *dst)
 {
-    uint8_t lt_flightmode;
+    ltm_modes_e lt_flightmode;
 
     if (FLIGHT_MODE(MANUAL_MODE))
-        lt_flightmode = 0;
+        lt_flightmode = LTM_MODE_MANUAL;
     else if (FLIGHT_MODE(NAV_WP_MODE))
-        lt_flightmode = 10;
+        lt_flightmode = LTM_MODE_WAYPOINTS;
     else if (FLIGHT_MODE(NAV_RTH_MODE))
-        lt_flightmode = 13;
+        lt_flightmode = LTM_MODE_RTH;
     else if (FLIGHT_MODE(NAV_POSHOLD_MODE))
-        lt_flightmode = 9;
+        lt_flightmode = LTM_MODE_GPSHOLD;
+    else if (FLIGHT_MODE(NAV_COURSE_HOLD_MODE))
+        lt_flightmode = LTM_MODE_CRUISE;
+    else if (FLIGHT_MODE(NAV_LAUNCH_MODE))
+        lt_flightmode = LTM_MODE_LAUNCH;
+    else if (FLIGHT_MODE(AUTO_TUNE))
+        lt_flightmode = LTM_MODE_AUTOTUNE;
     else if (FLIGHT_MODE(NAV_ALTHOLD_MODE))
-        lt_flightmode = 8;
+        lt_flightmode = LTM_MODE_ALTHOLD;
     else if (FLIGHT_MODE(HEADFREE_MODE) || FLIGHT_MODE(HEADING_MODE))
-        lt_flightmode = 11;
+        lt_flightmode = LTM_MODE_HEADHOLD;
     else if (FLIGHT_MODE(ANGLE_MODE))
-        lt_flightmode = 2;
+        lt_flightmode = LTM_MODE_ANGLE;
     else if (FLIGHT_MODE(HORIZON_MODE))
-        lt_flightmode = 3;
+        lt_flightmode = LTM_MODE_HORIZON;
     else
-        lt_flightmode = 1;      // Rate mode
+        lt_flightmode = LTM_MODE_RATE;      // Rate mode
 
     uint8_t lt_statemode = (ARMING_FLAG(ARMED)) ? 1 : 0;
     if (failsafeIsActive())
@@ -188,7 +189,7 @@ void ltm_sframe(sbuf_t *dst)
     sbufWriteU16(dst, (uint16_t)constrain(getMAhDrawn(), 0, 0xFFFF));    // current mAh (65535 mAh max)
     sbufWriteU8(dst, (uint8_t)((getRSSI() * 254) / 1023));        // scaled RSSI (uchar)
 #if defined(USE_PITOT)
-    sbufWriteU8(dst, sensors(SENSOR_PITOT) ? pitot.airSpeed / 100.0f : 0);  // in m/s
+    sbufWriteU8(dst, (sensors(SENSOR_PITOT) && pitotIsHealthy())? getAirspeedEstimate() / 100.0f : 0);  // in m/s
 #else
     sbufWriteU8(dst, 0);
 #endif
@@ -246,7 +247,6 @@ void ltm_xframe(sbuf_t *dst)
     ltm_x_counter++; // overflow is OK
 }
 
-#if defined(USE_NAV)
 /** OSD additional data frame, ~4 Hz rate, navigation system status
  */
 void ltm_nframe(sbuf_t *dst)
@@ -259,7 +259,6 @@ void ltm_nframe(sbuf_t *dst)
     sbufWriteU8(dst, NAV_Status.error);
     sbufWriteU8(dst, NAV_Status.flags);
 }
-#endif
 
 #define LTM_BIT_AFRAME  (1 << 0)
 #define LTM_BIT_GFRAME  (1 << 1)
@@ -362,13 +361,11 @@ static void process_ltm(void)
         ltm_finalise(dst);
     }
 
-#if defined(USE_NAV)
     if (current_schedule & LTM_BIT_NFRAME) {
         ltm_initialise_packet(dst);
         ltm_nframe(dst);
         ltm_finalise(dst);
     }
-#endif
 
     ltm_scheduler = (ltm_scheduler + 1) % 10;
 }
@@ -453,7 +450,7 @@ void checkLtmTelemetryState(void)
         if (newTelemetryEnabledValue){
             configureLtmScheduler();
             configureLtmTelemetryPort();
-            
+
     }
         else
             freeLtmTelemetryPort();
@@ -486,11 +483,9 @@ int getLtmFrame(uint8_t *frame, ltm_frame_e ltmFrameType)
     case LTM_XFRAME:
         ltm_xframe(sbuf);
         break;
-#if defined(USE_NAV)
     case LTM_NFRAME:
         ltm_nframe(sbuf);
         break;
-#endif
     }
     sbufSwitchToReader(sbuf, ltmFrame);
     const int frameSize = sbufBytesRemaining(sbuf);

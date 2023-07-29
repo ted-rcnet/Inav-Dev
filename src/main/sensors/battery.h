@@ -19,11 +19,15 @@
 
 #include "config/parameter_group.h"
 
+#include "drivers/time.h"
+
+#include "fc/settings.h"
+
+#include "sensors/battery_config_structs.h"
+
 #ifndef VBAT_SCALE_DEFAULT
 #define VBAT_SCALE_DEFAULT 1100
 #endif
-#define VBAT_SCALE_MIN 0
-#define VBAT_SCALE_MAX 65535
 
 #ifndef CURRENT_METER_SCALE
 #define CURRENT_METER_SCALE 400 // for Allegro ACS758LCB-100U (40mV/A)
@@ -33,43 +37,21 @@
 #define CURRENT_METER_OFFSET 0
 #endif
 
-typedef enum {
-    CURRENT_SENSOR_NONE = 0,
-    CURRENT_SENSOR_ADC,
-    CURRENT_SENSOR_VIRTUAL,
-    CURRENT_SENSOR_MAX = CURRENT_SENSOR_VIRTUAL
-} currentSensor_e;
+#ifndef MAX_BATTERY_PROFILE_COUNT
+#define MAX_BATTERY_PROFILE_COUNT SETTING_CONSTANT_MAX_BATTERY_PROFILE_COUNT
+#endif
 
-typedef enum {
-    BAT_CAPACITY_UNIT_MAH,
-    BAT_CAPACITY_UNIT_MWH,
-} batCapacityUnit_e;
+typedef struct {
+  uint8_t profile_index;
+  uint16_t max_voltage;
+} profile_comp_t;
 
-typedef struct batteryConfig_s {
+PG_DECLARE(batteryMetersConfig_t, batteryMetersConfig);
+PG_DECLARE_ARRAY(batteryProfile_t, MAX_BATTERY_PROFILE_COUNT, batteryProfiles);
 
-    struct {
-        uint16_t scale;         // adjust this to match battery voltage to reported value
-        uint16_t cellMax;       // maximum voltage per cell, used for auto-detecting battery voltage in 0.01V units, default is 421 (4.21V)
-        uint16_t cellMin;       // minimum voltage per cell, this triggers battery critical alarm, in 0.01V units, default is 330 (3.3V)
-        uint16_t cellWarning;   // warning voltage per cell, this triggers battery warning alarm, in 0.01V units, default is 350 (3.5V)
-    } voltage;
+extern const batteryProfile_t *currentBatteryProfile;
 
-    struct {
-        int16_t scale;          // scale the current sensor output voltage to milliamps. Value in 1/10th mV/A
-        int16_t offset;         // offset of the current sensor in millivolt steps
-        currentSensor_e type;   // type of current meter used, either ADC or virtual
-    } current;
-
-    struct {
-        uint32_t value;         // mAh or mWh (see capacity.unit)
-        uint32_t warning;       // mAh or mWh (see capacity.unit)
-        uint32_t critical;      // mAh or mWh (see capacity.unit)
-        batCapacityUnit_e unit; // Describes unit of capacity.value, capacity.warning and capacity.critical
-    } capacity;
-
-} batteryConfig_t;
-
-PG_DECLARE(batteryConfig_t, batteryConfig);
+#define currentBatteryProfileMutable ((batteryProfile_t*)currentBatteryProfile)
 
 typedef enum {
     BATTERY_OK = 0,
@@ -78,30 +60,47 @@ typedef enum {
     BATTERY_NOT_PRESENT
 } batteryState_e;
 
+
 uint16_t batteryAdcToVoltage(uint16_t src);
 batteryState_e getBatteryState(void);
+batteryState_e checkBatteryVoltageState(void);
 bool batteryWasFullWhenPluggedIn(void);
 bool batteryUsesCapacityThresholds(void);
-void batteryUpdate(uint32_t vbatTimeDelta);
 void batteryInit(void);
+void setBatteryProfile(uint8_t profileIndex);
+void activateBatteryProfile(void);
+void batteryDisableProfileAutoswitch(void);
 
 bool isBatteryVoltageConfigured(void);
+bool isPowerSupplyImpedanceValid(void);
 uint16_t getBatteryVoltage(void);
-uint16_t getBatteryVoltageLatestADC(void);
-uint16_t getBatteryWarningVoltage(void);
+uint16_t getBatteryRawVoltage(void);
+uint16_t getBatterySagCompensatedVoltage(void);
 uint8_t getBatteryCellCount(void);
+uint16_t getBatteryRawAverageCellVoltage(void);
 uint16_t getBatteryAverageCellVoltage(void);
+uint16_t getBatterySagCompensatedAverageCellVoltage(void);
 uint32_t getBatteryRemainingCapacity(void);
+uint16_t getPowerSupplyImpedance(void);
 
 bool isAmperageConfigured(void);
-int32_t getAmperage(void);
-int32_t getAmperageLatestADC(void);
+int16_t getAmperage(void);
+int16_t getAmperageSample(void);
 int32_t getPower(void);
 int32_t getMAhDrawn(void);
 int32_t getMWhDrawn(void);
 
-void currentMeterUpdate(int32_t lastUpdateAt);
+#ifdef USE_ADC
+void batteryUpdate(timeUs_t timeDelta);
+void sagCompensatedVBatUpdate(timeUs_t currentTime, timeUs_t timeDelta);
+void powerMeterUpdate(timeUs_t timeDelta);
+uint16_t getVBatSample(void);
+#endif
 
-void powerMeterUpdate(int32_t lastUpdateAt);
+void currentMeterUpdate(timeUs_t timeDelta);
 
 uint8_t calculateBatteryPercentage(void);
+float calculateThrottleCompensationFactor(void);
+int32_t calculateAveragePower(void);
+int32_t calculateAverageEfficiency(void);
+int32_t heatLossesCompensatedPower(int32_t power);

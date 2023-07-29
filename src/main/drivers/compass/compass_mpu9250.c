@@ -40,7 +40,7 @@
 #include "drivers/compass/compass.h"
 #include "drivers/compass/compass_mpu9250.h"
 
-#if defined(USE_MAG_MPU9250) && defined(USE_GYRO_MPU9250)
+#if defined(USE_MAG_MPU9250) && defined(USE_IMU_MPU9250)
 
 // No separate hardware descriptor needed. Hardware descriptor initialization is handled by GYRO driver
 
@@ -240,7 +240,6 @@ static bool mpu9250CompassRead(magDev_t * mag)
                     // too early. queue the status read again
                     ctx.state = CHECK_STATUS;
                     reprocess = true;
-                    debug[0]++;
                     return lastReadResult;
                 }
 
@@ -265,13 +264,12 @@ static bool mpu9250CompassRead(magDev_t * mag)
     uint8_t status2 = buf[6];
     if (!ack || (status2 & STATUS2_MAG_SENSOR_OVERFLOW)) {
         ctx.state = CHECK_STATUS;
-        debug[1]++;
         lastReadResult = false;
         return lastReadResult;
     }
 
     mag->magADCRaw[X] = -parseMag(buf + 0, magGain[X]);
-    mag->magADCRaw[Y] = -parseMag(buf + 2, magGain[Y]);
+    mag->magADCRaw[Y] = parseMag(buf + 2, magGain[Y]);
     mag->magADCRaw[Z] = -parseMag(buf + 4, magGain[Z]);
 
     memcpy(cachedMagData, &mag->magADCRaw, sizeof(cachedMagData));

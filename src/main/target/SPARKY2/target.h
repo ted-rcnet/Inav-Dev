@@ -29,27 +29,14 @@
 
 #define BEEPER                  PC9
 
-#define INVERTER_PIN_UART6      PC6
-
-#define USE_EXTI
-#define USE_MPU_DATA_READY_SIGNAL
-#define ENSURE_MPU_DATA_READY_IS_LOW
-
-#define USE_GYRO
-#define USE_GYRO_MPU9250
-#define GYRO_MPU9250_ALIGN      CW270_DEG
-
-#define USE_ACC
-#define USE_ACC_MPU9250
-#define ACC_MPU9250_ALIGN       CW270_DEG
+#define USE_IMU_MPU9250
+#define IMU_MPU9250_ALIGN       CW270_DEG
 
 #define MPU9250_SPI_BUS         BUS_SPI1
 #define MPU9250_CS_PIN          PC4
-#define GYRO_INT_EXTI            PC5
 
 #define USE_MAG
 #define USE_MAG_MPU9250
-#define MAG_MPU9250_ALIGN       CW270_DEG
 
 #define MAG_I2C_BUS             BUS_I2C1
 #define USE_MAG_HMC5883
@@ -57,6 +44,9 @@
 #define USE_MAG_IST8310
 #define USE_MAG_IST8308
 #define USE_MAG_MAG3110
+#define USE_MAG_LIS3MDL
+
+#define TEMPERATURE_I2C_BUS     BUS_I2C1
 
 #define USE_BARO
 #define BARO_I2C_BUS            BUS_I2C1
@@ -77,6 +67,8 @@
 #define USE_VCP
 #define VBUS_SENSING_PIN        PA8
 
+#define USE_UART_INVERTER
+
 #define USE_UART1
 #define UART1_RX_PIN            PA10
 #define UART1_TX_PIN            PA9
@@ -88,6 +80,7 @@
 #define USE_UART6
 #define UART6_RX_PIN            PC7
 #define UART6_TX_PIN            PC6 //inverter
+#define INVERTER_PIN_UART6_RX   PC6
 
 #define SERIAL_PORT_COUNT 4
 
@@ -112,19 +105,15 @@
 
 #define USE_ADC
 #define ADC_CHANNEL_1_PIN               PC2
-#define ADC_CHANNEL_2_PIN               PC1
+#define ADC_CHANNEL_2_PIN               PC3
 #define VBAT_ADC_CHANNEL                ADC_CHN_2
 #define CURRENT_METER_ADC_CHANNEL       ADC_CHN_1
 
-#define LED_STRIP
-#define LED_STRIP_TIMER                 TIM5
+// #define USE_LED_STRIP
+// #define WS2811_PIN                      PA1
 
 #define USE_RANGEFINDER
-#define USE_RANGEFINDER_VL53L0X
-#define VL53L0X_I2C_BUS                 BUS_I2C2
-
-#define USE_OPTICAL_FLOW
-#define USE_OPFLOW_CXOF
+#define RANGEFINDER_I2C_BUS             BUS_I2C2
 
 #define DEFAULT_FEATURES        (FEATURE_TX_PROF_SEL | FEATURE_BLACKBOX)
 #define DEFAULT_RX_TYPE         RX_TYPE_SERIAL
@@ -138,7 +127,3 @@
 #define TARGET_IO_PORTA 0xffff
 #define TARGET_IO_PORTB 0xffff
 #define TARGET_IO_PORTC 0xffff
-
-#define USABLE_TIMER_CHANNEL_COUNT 11
-#define USED_TIMERS  ( TIM_N(2) | TIM_N(3) | TIM_N(5) | TIM_N(12) | TIM_N(8) | TIM_N(9))
-

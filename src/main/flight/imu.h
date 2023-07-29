@@ -26,6 +26,9 @@
 
 extern fpVector3_t imuMeasuredAccelBF;         // cm/s/s
 extern fpVector3_t imuMeasuredRotationBF;       // rad/s
+extern fpVector3_t imuMeasuredRotationBFFiltered;       // rad/s
+extern fpVector3_t compansatedGravityBF;         // cm/s/s
+extern fpVector3_t HeadVecEFFiltered;
 
 typedef union {
     int16_t raw[XYZ_AXIS_COUNT];
@@ -39,6 +42,7 @@ typedef union {
 
 extern fpQuaternion_t orientation;
 extern attitudeEulerAngles_t attitude;
+extern float rMat[3][3];
 
 typedef struct imuConfig_s {
     uint16_t dcm_kp_acc;                    // DCM filter proportional gain ( x 10000) for accelerometer
@@ -46,6 +50,10 @@ typedef struct imuConfig_s {
     uint16_t dcm_kp_mag;                    // DCM filter proportional gain ( x 10000) for magnetometer and GPS heading
     uint16_t dcm_ki_mag;                    // DCM filter integral gain ( x 10000) for magnetometer and GPS heading
     uint8_t small_angle;
+    uint8_t acc_ignore_rate;
+    uint8_t acc_ignore_slope;
+    uint8_t gps_yaw_windcomp;
+    uint8_t inertia_comp_method;
 } imuConfig_t;
 
 PG_DECLARE(imuConfig_t, imuConfig);
@@ -57,6 +65,13 @@ typedef struct imuRuntimeConfig_s {
     float dcm_ki_mag;
     uint8_t small_angle;
 } imuRuntimeConfig_t;
+
+typedef enum
+{
+    COMPMETHOD_VELNED = 0,
+    COMPMETHOD_TURNRATE,
+    COMPMETHOD_ADAPTIVE
+} imu_inertia_comp_method_e;
 
 void imuConfigure(void);
 
@@ -71,3 +86,7 @@ void imuTransformVectorBodyToEarth(fpVector3_t * v);
 void imuTransformVectorEarthToBody(fpVector3_t * v);
 
 void imuInit(void);
+
+#if defined(SITL_BUILD)
+void imuSetAttitudeRPY(int16_t roll, int16_t pitch, int16_t yaw);
+#endif

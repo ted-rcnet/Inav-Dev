@@ -19,8 +19,7 @@
 
 #include "config/parameter_group.h"
 
-#define AUTO_DISARM_DELAY_MIN 0
-#define AUTO_DISARM_DELAY_MAX 60
+#define AIRMODE_THROTTLE_THRESHOLD 1300
 
 typedef enum rc_alias {
     ROLL = 0,
@@ -34,7 +33,11 @@ typedef enum rc_alias {
     AUX5,
     AUX6,
     AUX7,
-    AUX8
+    AUX8,
+    AUX9,
+    AUX10,
+    AUX11,
+    AUX12
 } rc_alias_e;
 
 typedef enum {
@@ -43,9 +46,20 @@ typedef enum {
 } throttleStatus_e;
 
 typedef enum {
+    THROTTLE_STATUS_TYPE_RC = 0,
+    THROTTLE_STATUS_TYPE_COMMAND
+} throttleStatusType_e;
+
+typedef enum {
     NOT_CENTERED = 0,
     CENTERED
 } rollPitchStatus_e;
+
+typedef enum {
+    STICK_CENTER = 0,
+    THROTTLE_THRESHOLD,
+    STICK_CENTER_ONCE
+} airmodeHandlingType_e;
 
 typedef enum {
     ROL_LO = (1 << (2 * ROLL)),
@@ -70,18 +84,21 @@ extern int16_t rcCommand[4];
 typedef struct rcControlsConfig_s {
     uint8_t deadband;                       // introduce a deadband around the stick center for pitch and roll axis. Must be greater than zero.
     uint8_t yaw_deadband;                   // introduce a deadband around the stick center for yaw axis. Must be greater than zero.
-    uint8_t pos_hold_deadband;              // Adds ability to adjust the Hold-position when moving the sticks (assisted mode)
+    uint8_t pos_hold_deadband;              // Deadband for position hold
+    uint8_t control_deadband;               // General deadband to check if sticks are deflected, us PWM.
     uint8_t alt_hold_deadband;              // Defines the neutral zone of throttle stick during altitude hold
-    uint16_t deadband3d_throttle;           // default throttle deadband from MIDRC
+    uint16_t mid_throttle_deadband;         // default throttle deadband from MIDRC
+    uint8_t airmodeHandlingType;            // Defaults to ANTI_WINDUP triggered at sticks centered
+    uint16_t airmodeThrottleThreshold;      // Throttle threshold for airmode initial activation
 } rcControlsConfig_t;
 
 PG_DECLARE(rcControlsConfig_t, rcControlsConfig);
 
 typedef struct armingConfig_s {
-    uint8_t fixed_wing_auto_arm;            // Auto-arm fixed wing aircraft on throttle up and never disarm
-    uint8_t disarm_kill_switch;             // allow disarm via AUX switch regardless of throttle value
-    uint8_t auto_disarm_delay;              // allow automatically disarming multicopters after auto_disarm_delay seconds of zero throttle. Disabled when 0
+    bool fixed_wing_auto_arm;               // Auto-arm fixed wing aircraft on throttle up and never disarm
+    bool disarm_kill_switch;                // allow disarm via AUX switch regardless of throttle value
     uint16_t switchDisarmDelayMs;           // additional delay between ARM box going off and actual disarm
+    uint16_t prearmTimeoutMs;               // duration for which Prearm being activated is valid. after this, Prearm needs to be reset. 0 means Prearm does not timeout.
 } armingConfig_t;
 
 PG_DECLARE(armingConfig_t, armingConfig);
@@ -90,9 +107,12 @@ stickPositions_e getRcStickPositions(void);
 bool checkStickPosition(stickPositions_e stickPos);
 
 bool areSticksInApModePosition(uint16_t ap_mode);
-bool areSticksDeflectedMoreThanPosHoldDeadband(void);
-throttleStatus_e calculateThrottleStatus(void);
+bool areSticksDeflected(void);
+bool isRollPitchStickDeflected(uint8_t deadband);
+throttleStatus_e calculateThrottleStatus(throttleStatusType_e type);
+int16_t throttleStickMixedValue(void);
 rollPitchStatus_e calculateRollPitchCenterStatus(void);
-void processRcStickPositions(throttleStatus_e throttleStatus);
+void processRcStickPositions(bool isThrottleLow);
+bool throttleStickIsLow(void);
 
-int32_t getRcStickDeflection(int32_t axis, uint16_t midrc);
+int32_t getRcStickDeflection(int32_t axis);

@@ -17,16 +17,9 @@
 
 #pragma once
 
-#include "drivers/exti.h"
 #include "drivers/sensor.h"
 #include "drivers/accgyro/accgyro.h"
 
-#define MPU_I2C_ADDRESS                 0x68
-
-// MPU6050
-#define MPU_RA_WHO_AM_I_LEGACY          0x00
-
-#define MPUx0x0_WHO_AM_I_CONST              (0x68) // MPU3050, 6000 and 6050
 #define MPU6000_WHO_AM_I_CONST              (0x68)
 #define MPU6500_WHO_AM_I_CONST              (0x70)
 #define MPU9250_WHO_AM_I_CONST              (0x71)
@@ -35,6 +28,8 @@
 #define ICM20602_WHO_AM_I_CONST             (0x12)
 #define ICM20608G_WHO_AM_I_CONST            (0xAF)
 #define ICM20689_WHO_AM_I_CONST             (0x98)
+#define ICM42605_WHO_AM_I_CONST             (0x42)
+#define ICM42688P_WHO_AM_I_CONST            (0x47)
 
 
 // RA = Register Address
@@ -138,7 +133,7 @@
 #define MPU_DLPF_188HZ          0x01
 #define MPU_DLPF_256HZ          0x00
 
-typedef struct mpuConfiguration_s {    
+typedef struct mpuConfiguration_s {
     uint8_t gyroReadXRegister; // Y and Z must registers follow this, 2 words each
 } mpuConfiguration_t;
 

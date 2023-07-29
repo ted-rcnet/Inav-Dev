@@ -17,11 +17,10 @@
 
 #pragma once
 #define TARGET_BOARD_IDENTIFIER "AFF4"
-#define TARGET_CONFIG
 
 #define USE_HARDWARE_REVISION_DETECTION
 #define HW_PIN                  PC13
-#define BRUSHED_ESC_AUTODETECT
+#define USE_BRUSHED_ESC_AUTODETECT
 
 #define USBD_PRODUCT_STRING "AlienFlight F4"
 
@@ -33,30 +32,17 @@
 
 #define INVERTER_PIN_USART2     PC15
 
-// MPU interrupt
-#define USE_EXTI
-#define GYRO_INT_EXTI            PC14
-//#define DEBUG_MPU_DATA_READY_INTERRUPT
-#define USE_MPU_DATA_READY_SIGNAL
-#define ENSURE_MPU_DATA_READY_IS_LOW
-
 #define MPU6500_CS_PIN          SPI1_NSS_PIN
 #define MPU6500_SPI_BUS         BUS_SPI1
 
 #define MPU9250_CS_PIN          SPI1_NSS_PIN
 #define MPU9250_SPI_BUS         BUS_SPI1
 
-#define USE_ACC
-#define USE_ACC_MPU6500
-#define ACC_MPU6500_ALIGN       CW270_DEG
-#define USE_ACC_MPU9250
-#define ACC_MPU9250_ALIGN       CW270_DEG
+#define USE_IMU_MPU6500
+#define IMU_MPU6500_ALIGN       CW270_DEG
+#define USE_IMU_MPU9250
+#define IMU_MPU9250_ALIGN       CW270_DEG
 
-#define USE_GYRO
-#define USE_GYRO_MPU6500
-#define GYRO_MPU6500_ALIGN      CW270_DEG
-#define USE_GYRO_MPU9250
-#define GYRO_MPU9250_ALIGN      CW270_DEG
 
 #define USE_MAG
 #define MAG_I2C_BUS             BUS_I2C1
@@ -66,34 +52,21 @@
 #define USE_MAG_QMC5883
 #define USE_MAG_IST8310
 #define USE_MAG_IST8308
+#define USE_MAG_LIS3MDL
 
-#define MAG_MPU9250_ALIGN       CW180_DEG_FLIP
+#define TEMPERATURE_I2C_BUS     BUS_I2C1
 
 #define USE_BARO
-#define BARO_I2C_BUS             BUS_I2C1
+#define BARO_I2C_BUS            BUS_I2C1
 #define USE_BARO_MS5611
 #define USE_BARO_BMP280
 
 #define USE_SDCARD
-
+#define USE_SDCARD_SPI
 #define SDCARD_DETECT_INVERTED
-
-#define SDCARD_DETECT_PIN               PB11
-#define SDCARD_DETECT_EXTI_LINE         EXTI_Line10
-#define SDCARD_DETECT_EXTI_PIN_SOURCE   EXTI_PinSource10
-#define SDCARD_DETECT_EXTI_PORT_SOURCE  EXTI_PortSourceGPIOB
-#define SDCARD_DETECT_EXTI_IRQn         EXTI15_10_IRQn
-
-#define SDCARD_SPI_INSTANCE             SPI2
-#define SDCARD_SPI_CS_PIN               PB10
-
-#define SDCARD_DMA_CHANNEL_TX               DMA1_Stream4
-#define SDCARD_DMA_CHANNEL_TX_COMPLETE_FLAG DMA_FLAG_TCIF4
-#define SDCARD_DMA_CLK                      RCC_AHB1Periph_DMA1
-#define SDCARD_DMA_CHANNEL                  DMA_Channel_0
-
-// Performance logging for SD card operations:
-// #define AFATFS_USE_INTROSPECTIVE_LOGGING
+#define SDCARD_DETECT_PIN       PB11
+#define SDCARD_SPI_BUS          BUS_SPI2
+#define SDCARD_CS_PIN           PB10
 
 //#define M25P16_CS_PIN        SPI2_NSS_PIN
 //#define M25P16_SPI_BUS       BUS_SPI2
@@ -168,12 +141,6 @@
 #define USE_LED_STRIP
 // LED Strip can run off Pin 41 (PA8) of the ESC outputs.
 #define WS2811_PIN                      PA8
-#define WS2811_TIMER                    TIM1
-#define WS2811_DMA_HANDLER_IDENTIFER    DMA2_ST1_HANDLER
-#define WS2811_DMA_STREAM               DMA2_Stream1
-#define WS2811_DMA_IT                   DMA_IT_TCIF1
-#define WS2811_DMA_CHANNEL              DMA_Channel_6
-#define WS2811_TIMER_CHANNEL            TIM_Channel_1
 
 #define USE_SPEKTRUM_BIND
 // USART2, PA3
@@ -201,7 +168,3 @@
 #define TARGET_IO_PORTB         0xffff
 #define TARGET_IO_PORTC         0xffff
 #define TARGET_IO_PORTD         (BIT(2))
-
-#define USABLE_TIMER_CHANNEL_COUNT      13
-#define USED_TIMERS             ( TIM_N(1) | TIM_N(3) | TIM_N(4) | TIM_N(5) | TIM_N(8) )
-

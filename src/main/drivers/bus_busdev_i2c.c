@@ -23,26 +23,43 @@
 
 #if defined(USE_I2C)
 
+#if !defined(UNUSED)
+#define UNUSED(x) ((void)(x))
+#endif
+
 #include "drivers/bus.h"
 #include "drivers/bus_i2c.h"
 
 bool i2cBusWriteBuffer(const busDevice_t * dev, uint8_t reg, const uint8_t * data, uint8_t length)
 {
-    return i2cWriteBuffer(dev->busdev.i2c.i2cBus, dev->busdev.i2c.address, reg, length, data);
+    const bool allowRawAccess = (dev->flags & DEVFLAGS_USE_RAW_REGISTERS);
+    return i2cWriteBuffer(dev->busdev.i2c.i2cBus, dev->busdev.i2c.address, reg, length, data, allowRawAccess);
 }
 
 bool i2cBusWriteRegister(const busDevice_t * dev, uint8_t reg, uint8_t data)
 {
-    return i2cWrite(dev->busdev.i2c.i2cBus, dev->busdev.i2c.address, reg, data);
+    const bool allowRawAccess = (dev->flags & DEVFLAGS_USE_RAW_REGISTERS);
+    return i2cWrite(dev->busdev.i2c.i2cBus, dev->busdev.i2c.address, reg, data, allowRawAccess);
 }
 
 bool i2cBusReadBuffer(const busDevice_t * dev, uint8_t reg, uint8_t * data, uint8_t length)
 {
-    return i2cRead(dev->busdev.i2c.i2cBus, dev->busdev.i2c.address, reg, length, data);
+    const bool allowRawAccess = (dev->flags & DEVFLAGS_USE_RAW_REGISTERS);
+    return i2cRead(dev->busdev.i2c.i2cBus, dev->busdev.i2c.address, reg, length, data, allowRawAccess);
 }
 
 bool i2cBusReadRegister(const busDevice_t * dev, uint8_t reg, uint8_t * data)
 {
-    return i2cRead(dev->busdev.i2c.i2cBus, dev->busdev.i2c.address, reg, 1, data);
+    const bool allowRawAccess = (dev->flags & DEVFLAGS_USE_RAW_REGISTERS);
+    return i2cRead(dev->busdev.i2c.i2cBus, dev->busdev.i2c.address, reg, 1, data, allowRawAccess);
+}
+bool i2cBusBusy(const busDevice_t *dev, bool *error)
+{   
+#if defined(AT32F43x) 
+    return i2cBusy(dev->busdev.i2c.i2cBus, error);
+#endif
+    UNUSED(dev);
+    UNUSED(error);
+    return false;
 }
 #endif

@@ -24,10 +24,19 @@
 
 #include "config/parameter_group.h"
 
-// time difference, 32 bits always sufficient
+// time difference, signed 32 bits of microseconds overflows at ~35 minutes
+// this is worth leaving as int32_t for performance reasons, use timeDeltaLarge_t for deltas that can be big
 typedef int32_t timeDelta_t;
+#define TIMEDELTA_MAX INT32_MAX
+
+// time difference large, signed 64 bits of microseconds overflows at ~300000 years
+typedef int64_t timeDeltaLarge_t;
+#define TIMEDELTALARGE_MAX INT64_MAX
+
 // millisecond time
-typedef uint32_t timeMs_t ;
+typedef uint32_t timeMs_t;
+#define TIMEMS_MAX UINT32_MAX
+
 // microsecond time
 #ifdef USE_64BIT_TIME
 typedef uint64_t timeUs_t;
@@ -37,10 +46,32 @@ typedef uint32_t timeUs_t;
 #define TIMEUS_MAX UINT32_MAX
 #endif
 
+// Constants for better readability
+#define MILLISECS_PER_SEC 1000
+#define USECS_PER_SEC (1000 * 1000)
+
+#define HZ2US(hz)   (1000000 / (hz))
+#define HZ2MS(hz)   (1000 / (hz))
+#define US2S(us)    ((us) * 1e-6f)
+#define US2MS(us)   ((us) * 1e-3f)
+#define MS2US(ms)   ((ms) * 1000)
+#define MS2S(ms)    ((ms) * 1e-3f)
+#define S2MS(s)     ((s) * MILLISECS_PER_SEC)
+#define DS2MS(ds)   ((ds) * 100)
+#define HZ2S(hz)    US2S(HZ2US(hz))
+
+// Use this function only to get small deltas (difference overflows at ~35 minutes)
 static inline timeDelta_t cmpTimeUs(timeUs_t a, timeUs_t b) { return (timeDelta_t)(a - b); }
+
+typedef enum {
+    TZ_AUTO_DST_OFF,
+    TZ_AUTO_DST_EU,
+    TZ_AUTO_DST_USA,
+} tz_automatic_dst_e;
 
 typedef struct timeConfig_s {
     int16_t tz_offset; // Offset from UTC in minutes, might be positive or negative
+    uint8_t tz_automatic_dst; // Automatically handle DST or ignore it, values come from tz_automatic_dst_e
 } timeConfig_t;
 
 PG_DECLARE(timeConfig_t, timeConfig);
@@ -75,7 +106,7 @@ typedef struct _dateTime_s {
 bool dateTimeFormatUTC(char *buf, dateTime_t *dt);
 bool dateTimeFormatLocal(char *buf, dateTime_t *dt);
 
-void dateTimeUTCToLocal(dateTime_t *utcDateTime, dateTime_t *localDateTime);
+void dateTimeUTCToLocal(dateTime_t *localDateTime, const dateTime_t *utcDateTime);
 // dateTimeSplitFormatted splits a formatted date into its date
 // and time parts. Note that the string pointed by formatted will
 // be modifed and will become invalid after calling this function.
@@ -87,4 +118,5 @@ bool rtcGet(rtcTime_t *t);
 bool rtcSet(rtcTime_t *t);
 
 bool rtcGetDateTime(dateTime_t *dt);
+bool rtcGetDateTimeLocal(dateTime_t *dt);
 bool rtcSetDateTime(dateTime_t *dt);

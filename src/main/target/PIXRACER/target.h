@@ -28,7 +28,6 @@
 // PixRacer target requires some hardware to be set up before booting and detecting sensors
 #define USE_HARDWARE_PREBOOT_SETUP
 
-#define USE_EXTI
 
 #define LED0                    PB11    //red
 #define LED1                    PB3     //blue
@@ -39,30 +38,21 @@
 
 #define INVERTER_PIN_UART       PC13
 
-#define USE_GYRO_MPU6500
-#define USE_ACC_MPU6500
-#define USE_GYRO_MPU9250
-#define USE_ACC_MPU9250
+#define USE_IMU_MPU6500
+#define IMU_MPU6500_ALIGN       CW180_DEG_FLIP
 
-#define GYRO_MPU6500_ALIGN      CW180_DEG_FLIP
-#define ACC_MPU6500_ALIGN       CW180_DEG_FLIP
-#define GYRO_MPU9250_ALIGN      CW180_DEG_FLIP
-#define ACC_MPU9250_ALIGN       CW180_DEG_FLIP
+#define USE_IMU_MPU9250
+#define IMU_MPU9250_ALIGN       CW180_DEG_FLIP
 
 #define USE_DUAL_GYRO
 
 // ICM20608
 #define ICM20608_CS_PIN         PC15
-#define ICM20608_EXTI_PIN       PC14
 #define ICM20608_SPI_BUS        BUS_SPI1
 
 // MPU9250 gyro/acc/mag
 #define MPU9250_CS_PIN          PC2
-#define MPU9250_EXTI_PIN        PD15
 #define MPU9250_SPI_BUS         BUS_SPI1
-
-#define USE_ACC
-#define USE_GYRO
 
 #define USE_MAG
 #define MAG_I2C_BUS             BUS_I2C1
@@ -72,30 +62,20 @@
 #define USE_MAG_IST8310
 #define USE_MAG_IST8308
 #define USE_MAG_MAG3110
+#define USE_MAG_LIS3MDL
+
+#define TEMPERATURE_I2C_BUS     BUS_I2C1
 
 #define USE_BARO
 #define USE_BARO_MS5611
 #define MS5611_CS_PIN           PD7
 #define MS5611_SPI_BUS          BUS_SPI2
 
-/*
 #define USE_SDCARD
-
-#define SDCARD_SPI_INSTANCE                 SPI3
-#define SDCARD_SPI_CS_PIN                   PD2
-
-#define SDCARD_DMA_CHANNEL_TX               DMA1_Stream5
-#define SDCARD_DMA_CHANNEL_TX_COMPLETE_FLAG DMA_FLAG_TCIF5
-#define SDCARD_DMA_CLK                      RCC_AHB1Periph_DMA1
-#define SDCARD_DMA_CHANNEL                  DMA_Channel_0
-*/
-
-#define USABLE_TIMER_CHANNEL_COUNT 7
-
-// MPU9250 interrupt
-#define USE_MPU_DATA_READY_SIGNAL
-#define ENSURE_MPU_DATA_READY_IS_LOW
-#define EXTI_CALLBACK_HANDLER_COUNT 1 // MPU data ready
+#define USE_SDCARD_SDIO
+#define SDCARD_SDIO_DMA         DMA_TAG(2,3,4)
+#define SDCARD_SDIO_4BIT
+#define ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT
 
 #define USE_VCP
 #define VBUS_SENSING_PIN PA9
@@ -166,7 +146,7 @@
 #define SERIALRX_PROVIDER       SERIALRX_SBUS
 #define SERIALRX_UART           SERIAL_PORT_USART6
 
-#define DEFAULT_RX_TYPE         RX_TYPE_PPM
+#define DEFAULT_RX_TYPE         RX_TYPE_SERIAL
 #define DEFAULT_FEATURES        (FEATURE_TX_PROF_SEL | FEATURE_BLACKBOX)
 
 #define USE_SERIAL_4WAY_BLHELI_INTERFACE
@@ -179,5 +159,3 @@
 #define TARGET_IO_PORTC         0xffff
 #define TARGET_IO_PORTD         0xffff
 #define TARGET_IO_PORTE         0xffff
-
-#define USED_TIMERS             ( TIM_N(1) | TIM_N(3) | TIM_N(4))

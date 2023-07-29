@@ -18,7 +18,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <platform.h>
-#ifdef TARGET_CONFIG
+
 #include "config/feature.h"
 #include "drivers/pwm_output.h"
 #include "blackbox/blackbox.h"
@@ -41,7 +41,6 @@
 #include "flight/failsafe.h"
 #include "drivers/sound_beeper.h"
 #include "navigation/navigation.h"
-//#include "hardware_revision.h"
 
 void targetConfiguration(void)
 {
@@ -58,7 +57,7 @@ void targetConfiguration(void)
     pidProfileMutable()->bank_mc.pid[PID_YAW].D = 0;
     pidProfileMutable()->bank_mc.pid[PID_LEVEL].P = 20;
     pidProfileMutable()->bank_mc.pid[PID_LEVEL].I = 10;
-    pidProfileMutable()->bank_mc.pid[PID_LEVEL].D = 75; 
+    pidProfileMutable()->bank_mc.pid[PID_LEVEL].D = 75;
 
+    beeperConfigMutable()->pwmMode = true;
 }
-#endif

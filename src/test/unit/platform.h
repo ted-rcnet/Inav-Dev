@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #define U_ID_0 0
 #define U_ID_1 1
 #define U_ID_2 2
@@ -78,3 +80,7 @@ extern SysTick_Type *SysTick;
 #define WS2811_DMA_HANDLER_IDENTIFER 0
 
 #include "target.h"
+
+#define FAST_CODE 
+#define NOINLINE
+#define EXTENDED_FASTRAM

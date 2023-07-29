@@ -30,9 +30,9 @@
 
 typedef enum {
     OPFLOW_NONE         = 0,
-    OPFLOW_FAKE         = 1,
-    OPFLOW_CXOF         = 2,
-    OPFLOW_PMW3901      = 3
+    OPFLOW_CXOF         = 1,
+    OPFLOW_MSP          = 2,
+    OPFLOW_FAKE         = 3,
 } opticalFlowSensor_e;
 
 typedef enum {
@@ -42,6 +42,7 @@ typedef enum {
 
 typedef struct opticalFlowConfig_s  {
     uint8_t opflow_hardware;
+    uint8_t opflow_align;
     float   opflow_scale;       // Scaler value to convert between raw sensor units to [deg/s]
 } opticalFlowConfig_t;
 
@@ -57,7 +58,7 @@ typedef struct opflow_s {
     float           bodyRate[2];    // body inertial angular rate in rad/sec measured about the X and Y body axis
 
     float           gyroBodyRateAcc[2];
-    timeUs_t        gyroBodyRateTimeUs;    
+    timeUs_t        gyroBodyRateTimeUs;
 
     uint8_t         rawQuality;
 } opflow_t;
@@ -68,3 +69,4 @@ void opflowGyroUpdateCallback(timeUs_t gyroUpdateDeltaUs);
 bool opflowInit(void);
 void opflowUpdate(timeUs_t currentTimeUs);
 bool opflowIsHealthy(void);
+void opflowStartCalibration(void);

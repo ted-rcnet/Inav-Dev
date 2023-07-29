@@ -73,7 +73,7 @@ static bool cxofOpflowInit(void)
         return false;
     }
 
-    flowPort = openSerialPort(portConfig->identifier, FUNCTION_OPTICAL_FLOW, NULL, NULL, baudRates[BAUD_19200], MODE_RX, SERIAL_NOT_INVERTED);
+    flowPort = openSerialPort(portConfig->identifier, FUNCTION_OPTICAL_FLOW, NULL, NULL, baudRates[portConfig->gps_baudrateIndex], MODE_RX, SERIAL_NOT_INVERTED);
     if (!flowPort) {
         return false;
     }
@@ -111,8 +111,9 @@ static bool cxofOpflowUpdate(opflowData_t * data)
                 if (pkt->header == 0xFE && pkt->footer == 0xAA) {
                     // Valid packet
                     tmpData.deltaTime += (currentTimeUs - previousTimeUs);
-                    tmpData.flowRateRaw[0] +=  pkt->motionX;
-                    tmpData.flowRateRaw[1] += -pkt->motionY;    // Flow sensor is facing down, apply 180 roll rotation
+                    tmpData.flowRateRaw[0] += pkt->motionX;
+                    tmpData.flowRateRaw[1] += pkt->motionY;
+                    tmpData.flowRateRaw[2] = 0;
                     tmpData.quality = (constrain(pkt->squal, 64, 78) - 64) * 100 / 14;
 
                     previousTimeUs = currentTimeUs;
@@ -128,7 +129,7 @@ static bool cxofOpflowUpdate(opflowData_t * data)
             bufferPtr = 0;
         }
     }
-    
+
     if (newPacket) {
         *data = tmpData;
     }

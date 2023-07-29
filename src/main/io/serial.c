@@ -40,6 +40,10 @@
 #include "drivers/serial_uart.h"
 #endif
 
+#if defined(SITL_BUILD)
+#include "drivers/serial_tcp.h"
+#endif
+
 #include "drivers/light_led.h"
 
 #if defined(USE_VCP)
@@ -49,6 +53,7 @@
 #include "io/serial.h"
 
 #include "fc/cli.h"
+#include "fc/settings.h"
 
 #include "msp/msp_serial.h"
 
@@ -99,9 +104,9 @@ static uint8_t serialPortCount;
 const uint32_t baudRates[] = { 0, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 250000,
         460800, 921600, 1000000, 1500000, 2000000, 2470000 }; // see baudRate_e
 
-#define BAUD_RATE_COUNT (sizeof(baudRates) / sizeof(baudRates[0]))
+#define BAUD_RATE_COUNT ARRAYLEN(baudRates)
 
-PG_REGISTER_WITH_RESET_FN(serialConfig_t, serialConfig, PG_SERIAL_CONFIG, 0);
+PG_REGISTER_WITH_RESET_FN(serialConfig_t, serialConfig, PG_SERIAL_CONFIG, 1);
 
 void pgResetFn_serialConfig(serialConfig_t *serialConfig)
 {
@@ -110,7 +115,7 @@ void pgResetFn_serialConfig(serialConfig_t *serialConfig)
     for (int i = 0; i < SERIAL_PORT_COUNT; i++) {
         serialConfig->portConfigs[i].identifier = serialPortIdentifiers[i];
         serialConfig->portConfigs[i].msp_baudrateIndex = BAUD_115200;
-        serialConfig->portConfigs[i].gps_baudrateIndex = BAUD_38400;
+        serialConfig->portConfigs[i].gps_baudrateIndex = BAUD_115200;
         serialConfig->portConfigs[i].telemetry_baudrateIndex = BAUD_AUTO;
         serialConfig->portConfigs[i].peripheral_baudrateIndex = BAUD_115200;
     }
@@ -132,9 +137,9 @@ void pgResetFn_serialConfig(serialConfig_t *serialConfig)
 #endif
 
 #ifdef SMARTAUDIO_UART
-    serialPortConfig_t *gpsUartConfig = serialFindPortConfiguration(SMARTAUDIO_UART);
-    if (SMARTAUDIO_UART) {
-        gpsUartConfig->functionMask = FUNCTION_VTX_SMARTAUDIO;
+    serialPortConfig_t *smartAudioUartConfig = serialFindPortConfiguration(SMARTAUDIO_UART);
+    if (smartAudioUartConfig) {
+        smartAudioUartConfig->functionMask = FUNCTION_VTX_SMARTAUDIO;
     }
 #endif
 
@@ -147,7 +152,7 @@ void pgResetFn_serialConfig(serialConfig_t *serialConfig)
     }
 #endif
 
-    serialConfig->reboot_character = 'R';
+    serialConfig->reboot_character = SETTING_REBOOT_CHARACTER_DEFAULT;
 }
 
 baudRate_e lookupBaudRateIndex(uint32_t baudRate)
@@ -232,21 +237,21 @@ portSharing_e determinePortSharing(const serialPortConfig_t *portConfig, serialP
     return portConfig->functionMask == function ? PORTSHARING_NOT_SHARED : PORTSHARING_SHARED;
 }
 
-bool isSerialPortShared(const serialPortConfig_t *portConfig, uint16_t functionMask, serialPortFunction_e sharedWithFunction)
+bool isSerialPortShared(const serialPortConfig_t *portConfig, uint32_t functionMask, serialPortFunction_e sharedWithFunction)
 {
     return (portConfig) && (portConfig->functionMask & sharedWithFunction) && (portConfig->functionMask & functionMask);
 }
 
 static findSharedSerialPortState_t findSharedSerialPortState;
 
-serialPort_t *findSharedSerialPort(uint16_t functionMask, serialPortFunction_e sharedWithFunction)
+serialPort_t *findSharedSerialPort(uint32_t functionMask, serialPortFunction_e sharedWithFunction)
 {
     memset(&findSharedSerialPortState, 0, sizeof(findSharedSerialPortState));
 
     return findNextSharedSerialPort(functionMask, sharedWithFunction);
 }
 
-serialPort_t *findNextSharedSerialPort(uint16_t functionMask, serialPortFunction_e sharedWithFunction)
+serialPort_t *findNextSharedSerialPort(uint32_t functionMask, serialPortFunction_e sharedWithFunction)
 {
     while (findSharedSerialPortState.lastIndex < SERIAL_PORT_COUNT) {
         const serialPortConfig_t *candidate = &serialConfig()->portConfigs[findSharedSerialPortState.lastIndex++];
@@ -263,7 +268,7 @@ serialPort_t *findNextSharedSerialPort(uint16_t functionMask, serialPortFunction
 }
 
 #define ALL_TELEMETRY_FUNCTIONS_MASK (FUNCTION_TELEMETRY_FRSKY | FUNCTION_TELEMETRY_HOTT | FUNCTION_TELEMETRY_SMARTPORT | FUNCTION_TELEMETRY_LTM | FUNCTION_TELEMETRY_MAVLINK | FUNCTION_TELEMETRY_IBUS)
-#define ALL_FUNCTIONS_SHARABLE_WITH_MSP (FUNCTION_BLACKBOX | ALL_TELEMETRY_FUNCTIONS_MASK | FUNCTION_DEBUG_TRACE)
+#define ALL_FUNCTIONS_SHARABLE_WITH_MSP (FUNCTION_BLACKBOX | ALL_TELEMETRY_FUNCTIONS_MASK | FUNCTION_LOG)
 
 bool isSerialConfigValid(const serialConfig_t *serialConfigToCheck)
 {
@@ -326,6 +331,13 @@ bool doesConfigurationUsePort(serialPortIdentifier_e identifier)
     serialPortConfig_t *candidate = serialFindPortConfiguration(identifier);
     return candidate != NULL && candidate->functionMask;
 }
+
+#if defined(SITL_BUILD)
+serialPort_t *uartOpen(USART_TypeDef *USARTx, serialReceiveCallbackPtr callback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options)
+{
+    return tcpOpen(USARTx, callback, rxCallbackData, baudRate, mode, options);
+}
+#endif
 
 serialPort_t *openSerialPort(
     serialPortIdentifier_e identifier,
@@ -440,7 +452,7 @@ void closeSerialPort(serialPort_t *serialPort)
     serialPortUsage->serialPort = NULL;
 }
 
-void serialInit(bool softserialEnabled, serialPortIdentifier_e serialPortToDisable)
+void serialInit(bool softserialEnabled)
 {
     uint8_t index;
 
@@ -450,12 +462,6 @@ void serialInit(bool softserialEnabled, serialPortIdentifier_e serialPortToDisab
     for (index = 0; index < SERIAL_PORT_COUNT; index++) {
         serialPortUsageList[index].identifier = serialPortIdentifiers[index];
 
-        if (serialPortToDisable != SERIAL_PORT_NONE) {
-            if (serialPortUsageList[index].identifier == serialPortToDisable) {
-                serialPortUsageList[index].identifier = SERIAL_PORT_NONE;
-                serialPortCount--;
-            }
-        }
         if (!softserialEnabled) {
             if (0
 #ifdef USE_SOFTSERIAL1
@@ -542,6 +548,8 @@ void serialPassthrough(serialPort_t *left, serialPort_t *right, serialConsumer
         if (serialRxBytesWaiting(left)) {
             LED0_ON;
             uint8_t c = serialRead(left);
+            // Make sure there is space in the tx buffer
+            while (!serialTxBytesFree(right));
             serialWrite(right, c);
             leftC(c);
             LED0_OFF;
@@ -549,6 +557,8 @@ void serialPassthrough(serialPort_t *left, serialPort_t *right, serialConsumer
          if (serialRxBytesWaiting(right)) {
              LED0_ON;
              uint8_t c = serialRead(right);
+             // Make sure there is space in the tx buffer
+             while (!serialTxBytesFree(left));
              serialWrite(left, c);
              rightC(c);
              LED0_OFF;

@@ -18,7 +18,6 @@
 #pragma once
 
 #define TARGET_BOARD_IDENTIFIER "SP4E"
-#define TARGET_CONFIG
 
 #ifndef SPRACINGF4EVO_REV
 #define SPRACINGF4EVO_REV 2
@@ -31,28 +30,14 @@
 #define BEEPER                  PC15
 #define BEEPER_INVERTED
 
-#define INVERTER_PIN_UART2      PB2
-
-#define USE_EXTI
-#define GYRO_INT_EXTI            PC13
-#define USE_MPU_DATA_READY_SIGNAL
-
 #define USE_MAG_DATA_READY_SIGNAL
 #define ENSURE_MAG_DATA_READY_IS_HIGH
 
-#define USE_GYRO
-#define USE_GYRO_MPU6500
-#define USE_GYRO_MPU9250
+#define USE_IMU_MPU6500
+#define IMU_MPU6500_ALIGN       CW0_DEG
 
-#define USE_ACC
-#define USE_ACC_MPU6500
-#define USE_ACC_MPU9250
-
-#define ACC_MPU6500_ALIGN       CW0_DEG
-#define GYRO_MPU6500_ALIGN      CW0_DEG
-
-#define ACC_MPU9250_ALIGN       CW0_DEG
-#define GYRO_MPU9250_ALIGN      CW0_DEG
+#define USE_IMU_MPU9250
+#define IMU_MPU9250_ALIGN       CW0_DEG
 
 #define USE_BARO
 #define BARO_I2C_BUS            BUS_I2C1
@@ -67,8 +52,14 @@
 #define USE_MAG_IST8310
 #define USE_MAG_IST8308
 #define USE_MAG_MAG3110
+#define USE_MAG_LIS3MDL
+
+#define TEMPERATURE_I2C_BUS     BUS_I2C1
 
 #define USE_VCP
+
+#define USE_UART_INVERTER
+
 #define USE_UART1
 #define USE_UART2
 #define USE_UART3
@@ -81,6 +72,7 @@
 
 #define UART2_TX_PIN            PA2
 #define UART2_RX_PIN            PA3
+#define INVERTER_PIN_UART2_RX   PB2
 
 #define UART3_TX_PIN            PB10
 #define UART3_RX_PIN            PB11
@@ -122,23 +114,12 @@
 #define SPI3_MISO_PIN           PB4  // NC
 #define SPI3_MOSI_PIN           PB5  // NC
 
-#define VTX_RTC6705
-#define VTX_RTC6705_OPTIONAL    // SPI3 on an F4 EVO may be used for RTC6705 VTX control.
-
-#define RTC6705_CS_PIN          SPI3_NSS_PIN
-#define RTC6705_SPI_INSTANCE    SPI3
-
 #define USE_SDCARD
+#define USE_SDCARD_SPI
 #define SDCARD_DETECT_INVERTED
-#define SDCARD_DETECT_PIN                   PC14
-
-#define SDCARD_SPI_INSTANCE                 SPI2
-#define SDCARD_SPI_CS_PIN                   SPI2_NSS_PIN
-
-#define SDCARD_DMA_CHANNEL_TX               DMA1_Stream4
-#define SDCARD_DMA_CHANNEL_TX_COMPLETE_FLAG DMA_FLAG_TCIF4
-#define SDCARD_DMA_CLK                      RCC_AHB1Periph_DMA1
-#define SDCARD_DMA_CHANNEL                  DMA_Channel_0
+#define SDCARD_DETECT_PIN       PC14
+#define SDCARD_SPI_BUS          BUS_SPI2
+#define SDCARD_CS_PIN           SPI2_NSS_PIN
 
 #define MPU6500_CS_PIN                      SPI1_NSS_PIN
 #define MPU6500_SPI_BUS                     BUS_SPI1
@@ -157,15 +138,11 @@
 // PC4 - NC - Free for ADC12_IN14 / VTX CS
 // PC5 - NC - Free for ADC12_IN15 / VTX Enable / OSD VSYNC
 
-//#define USE_OSD
 //#define USE_MAX7456
 //#define USE_OSD_OVER_MSP_DISPLAYPORT
 
 #define USE_LED_STRIP
 #define WS2811_PIN                      PA1
-#define WS2811_DMA_HANDLER_IDENTIFER    DMA1_ST6_HANDLER
-#define WS2811_DMA_STREAM               DMA1_Stream6
-#define WS2811_DMA_CHANNEL              DMA_Channel_3   // ???
 
 #define ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT
 
@@ -182,12 +159,4 @@
 #define TARGET_IO_PORTC         0xffff
 #define TARGET_IO_PORTD         (BIT(2))
 
-#define USABLE_TIMER_CHANNEL_COUNT  11
 #define MAX_PWM_OUTPUT_PORTS        8
-
-#if (SPRACINGF4NEO_REV >= 2)
-#define USED_TIMERS  (TIM_N(2) | TIM_N(3) | TIM_N(4) | TIM_N(8) | TIM_N(9))
-#else
-#define USED_TIMERS  (TIM_N(2) | TIM_N(3) | TIM_N(4) | TIM_N(8) | TIM_N(9))
-#endif
-

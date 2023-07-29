@@ -26,7 +26,7 @@ but only the first 32 are used.
 
 WS2812 LEDs require an 800khz signal and precise timings and thus requires the use of a dedicated hardware timer.
 
-Note: Not all WS2812 ICs use the same timings, some batches use different timings.  
+Note: Not all WS2812 ICs use the same timings, some batches use different timings.
 
 It could be possible to be able to specify the timings required via CLI if users request it.
 
@@ -50,11 +50,8 @@ from another BEC.  Just ensure that the GROUND is the same for all BEC outputs a
 
 | Target                | Pin  | LED Strip | Signal |
 | --------------------- | ---- | --------- | -------|
-| ChebuzzF3/F3Discovery | PB8  | Data In   | PB8    |
+| F3Discovery | PB8  | Data In   | PB8    |
 | Sparky                | PWM5 | Data In   | PA6    |
-
-Additionally, since RC5 is also used for Parallel PWM RC input on both the Chebuzz and STM32F3Discovery targets, led strips
-can not be used at the same time at Parallel PWM.
 
 If you have LEDs that are intermittent, flicker or show the wrong colors then drop the VIN to less than 4.7v, e.g. by using an inline
 diode on the VIN to the LED strip. The problem occurs because of the difference in voltage between the data signal and the power
@@ -118,6 +115,7 @@ Each LED has one base function:
 * `G` - `G`PS state.
 * `S` - R`S`SSI level.
 * `L` - Battery `L`evel.
+* `H` - C`H`annel.
 
 And each LED has overlays:
 
@@ -127,8 +125,9 @@ And each LED has overlays:
 * `B` - `B`link (flash twice) mode.
 * `O` - Lars`O`n Scanner (Cylon Effect).
 * `N` - Blink on la`N`ding (throttle < 50%).
+* `E` - Strob`E` Blink white on top of selected color.
 
-`cc` specifies the color number (0 based index).
+`cc` specifies the color number (0 based index), or Channel number to adjust Hue
 
 Example:
 
@@ -140,6 +139,7 @@ led 3 0,15:SD:AWI:0
 led 4 7,7::C:1
 led 5 8,8::C:2
 led 6 8,9::B:1
+led 7 8,10::H:6
 ```
 
 To erase an led, and to mark the end of the chain, use `0,0::` as the second argument, like this:
@@ -186,7 +186,7 @@ This mode binds the LED color to RSSI level.
 | Orange     |    40%   |
 | Red        |    20%   |
 | Deep pink  |     0%   |
-    
+
 When RSSI is below 50% is reached, LEDs will blink slowly, and they will blink fast when under 20%.
 
 
@@ -202,7 +202,7 @@ This mode binds the LED color to remaining battery capacity.
 | Orange     |    40%   |
 | Red        |    20%   |
 | Deep pink  |     0%   |
-    
+
 When Warning or Critial voltage is reached, LEDs will blink slowly or fast.
 Note: this mode requires a current sensor. If you don't have the actual device you can set up a virtual current sensor (see [Battery](Battery.md)).
 
@@ -237,12 +237,18 @@ The mapping between modes led placement and colors is currently fixed and cannot
 
 #### Indicator
 
+##### For fixed wing (INAV 6.1 onwards)
+
+This mode flashes LEDs that correspond to the roll stick position. Rolling left will flash any `indicator` LED on the left half of the grid. Rolling right will flash any `indicator` on the right side of the grid.
+
+##### For other platforms (all platforms pre INAV 6.1)
+
 This mode flashes LEDs that correspond to roll and pitch stick positions.  i.e.  they indicate the direction the craft is going to turn.
 
 | Mode | Direction | LED Color |
 |------------|--------|---------------------|
 |Orientation | North  | WHITE			|
-|Orientation | East   | DARK VIOLET	|  
+|Orientation | East   | DARK VIOLET	|
 |Orientation | South  | RED			|
 |Orientation | West   | DEEP PINK		|
 |Orientation | Up     | BLUE			|
@@ -297,7 +303,7 @@ the same time.  Thrust should normally be combined with Color or Mode/Orientatio
 
 #### Thrust ring state
 
-This mode is allows you to use one or multiple led rings (e.g. NeoPixel ring) for an afterburner effect.  The light pattern rotates clockwise as throttle increases. 
+This mode is allows you to use one or multiple led rings (e.g. NeoPixel ring) for an afterburner effect.  The light pattern rotates clockwise as throttle increases.
 
 A better effect is acheived when LEDs configured for thrust ring have no other functions.
 
@@ -305,7 +311,7 @@ LED direction and X/Y positions are irrelevant for thrust ring LED state.  The o
 
 Each LED of the ring can be a different color. The color can be selected between the 16 colors availables.
 
-For example, led 0 is set as a `R`ing thrust state led in color 13 as follow. 
+For example, led 0 is set as a `R`ing thrust state led in color 13 as follow.
 
 ```
 led 0 2,2::R:13
@@ -321,7 +327,7 @@ x,y position and directions are ignored when using this mode.
 
 Other modes will override or combine with the color mode.
 
-For example, to set led 0 to always use color 10 you would issue this command. 
+For example, to set led 0 to always use color 10 you would issue this command.
 
 ```
 led 0 0,0::C:10
@@ -419,7 +425,7 @@ Mode 6 use these functions:
 | 5        | gps: no satellites |
 | 6        | gps: no fix        |
 | 7        | gps: 3D fix        |
- 
+
 The ColorIndex is picked from the colors array ("palette").
 
 Examples (using the default colors):
@@ -521,13 +527,13 @@ Which translates into the following positions:
 
 ```
      6             3
-      \           / 
-       \   5-4   / 
+      \           /
+       \   5-4   /
       7 \ FRONT / 2
-        | 12-15 | 
+        | 12-15 |
       8 /  BACK \ 1
        /  10-11  \
-      /           \ 
+      /           \
      9             0
 ```
 
@@ -535,11 +541,11 @@ LEDs 0,3,6 and 9 should be placed underneath the quad, facing downwards.
 LEDs 1-2, 4-5, 7-8 and 10-11 should be positioned so the face east/north/west/south, respectively.
 LEDs 12-13 should be placed facing down, in the middle
 LEDs 14-15 should be placed facing up, in the middle
- 
+
 ### Exmple 28 LED config
 
 ```
-#right rear cluster
+# right rear cluster
 led 0 9,9:S:FWT:0
 led 1 10,10:S:FWT:0
 led 2 11,11:S:IA:0
@@ -577,12 +583,12 @@ led 27 2,9:S:FWT:0
 ```
        16-18  9-11
 19-21 \           / 6-8
-       \  12-15  / 
+       \  12-15  /
         \ FRONT /
         /  BACK \
        /         \
 22-24 /           \ 3-5
-       25-27   0-2  
+       25-27   0-2
 ```
 
 All LEDs should face outwards from the chassis in this configuration.

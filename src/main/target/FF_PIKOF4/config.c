@@ -20,19 +20,13 @@
 
 #include <platform.h>
 
-#ifdef USE_TARGET_CONFIG
 #include "rx/rx.h"
-
 #include "telemetry/telemetry.h"
-
 #include "sensors/battery.h"
-
 #define CURRENTSCALE 250
 
 void targetConfiguration(void)
 {
-    rxConfigMutable()->halfDuplex = false;
-    telemetryConfigMutable()->smartportUartUnidirectional = true;
-    batteryConfigMutable()->current.scale = CURRENTSCALE;
+    rxConfigMutable()->halfDuplex = TRISTATE_OFF;
+    batteryMetersConfigMutable()->current.scale = CURRENTSCALE;
 }
-#endif

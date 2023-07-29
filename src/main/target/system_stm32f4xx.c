@@ -293,8 +293,8 @@
   *
   *        http://www.st.com/software_license_agreement_liberty_v2
   *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   * See the License for the specific language governing permissions and
   * limitations under the License.
@@ -315,8 +315,10 @@
   */
 
 #include "stm32f4xx.h"
+#include "system.h"
 #include "system_stm32f4xx.h"
-    
+#include "drivers/system.h"
+
 uint32_t hse_value = HSE_VALUE;
 
 /**
@@ -351,9 +353,9 @@ uint32_t hse_value = HSE_VALUE;
      through STLINK MCO pin of STM32F103 microcontroller. The frequency cannot be changed
      and is fixed at 8 MHz.
      Hardware configuration needed for Nucleo Board:
-     – SB54, SB55 OFF
-     – R35 removed
-     – SB16, SB50 ON */
+     - SB54, SB55 OFF
+     - R35 removed
+     - SB16, SB50 ON */
 /* #define USE_HSE_BYPASS */
 
 #if defined(USE_HSE_BYPASS)
@@ -413,11 +415,11 @@ uint32_t hse_value = HSE_VALUE;
 #endif /* STM32F401xx */
 
 #if defined(STM32F410xx) || defined(STM32F411xE)
-#define PLL_N      336
+#define PLL_N      192
 /* SYSCLK = PLL_VCO / PLL_P */
-#define PLL_P      4
+#define PLL_P      2
 /* USB OTG FS, SDIO and RNG Clock =  PLL_VCO / PLLQ */
-#define PLL_Q      7
+#define PLL_Q      4
 #endif /* STM32F410xx || STM32F411xE */
 
 /******************************************************************************/
@@ -474,6 +476,8 @@ static void SystemInit_ExtMemCtl(void);
   */
 void SystemInit(void)
 {
+  initialiseMemorySections();
+
   /* FPU settings ------------------------------------------------------------*/
   #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
     SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));  /* set CP10 and CP11 Full Access */
@@ -509,7 +513,7 @@ void SystemInit(void)
 #ifdef VECT_TAB_SRAM
   SCB->VTOR = SRAM_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal SRAM */
 #else
-  SCB->VTOR = FLASH_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal FLASH */
+  SCB->VTOR = (uint32_t) &isr_vector_table_base; /* Vector Table Relocation in Internal FLASH */
 #endif
 }
 
@@ -569,10 +573,10 @@ void SystemCoreClockUpdate(void)
     case 0x08:  /* PLL P used as system clock source */
        /* PLL_VCO = (HSE_VALUE or HSI_VALUE / PLL_M) * PLL_N
          SYSCLK = PLL_VCO / PLL_P
-         */    
+         */
       pllsource = (RCC->PLLCFGR & RCC_PLLCFGR_PLLSRC) >> 22;
       pllm = RCC->PLLCFGR & RCC_PLLCFGR_PLLM;
-      
+
       if (pllsource != 0)
       {
         /* HSE used as PLL clock source */
@@ -621,10 +625,10 @@ void SystemCoreClockUpdate(void)
 }
 
 /**
-  * @brief  Configures the System clock source, PLL Multiplier and Divider factors, 
+  * @brief  Configures the System clock source, PLL Multiplier and Divider factors,
   *         AHB/APBx prescalers and Flash settings
-  * @Note   This function should be called only once the RCC clock configuration  
-  *         is reset to the default reset state (done in SystemInit() function).   
+  * @Note   This function should be called only once the RCC clock configuration
+  *         is reset to the default reset state (done in SystemInit() function).
   * @param  None
   * @retval None
   */
@@ -634,10 +638,10 @@ void SetSysClock(void)
 /*            PLL (clocked by HSE) used as System clock source                */
 /******************************************************************************/
   __IO uint32_t StartUpCounter = 0, HSEStatus = 0;
-  
+
   /* Enable HSE */
   RCC->CR |= ((uint32_t)RCC_CR_HSEON);
- 
+
   /* Wait till HSE is ready and if Time out is reached exit */
   do
   {
@@ -666,7 +670,7 @@ void SetSysClock(void)
 #if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F446xx) || defined(STM32F469_479xx)
     /* PCLK2 = HCLK / 2*/
     RCC->CFGR |= RCC_CFGR_PPRE2_DIV2;
-    
+
     /* PCLK1 = HCLK / 4*/
     RCC->CFGR |= RCC_CFGR_PPRE1_DIV4;
 #endif /* STM32F40_41xxx || STM32F427_437x || STM32F429_439xx  || STM32F446xx || STM32F469_479xx */
@@ -704,7 +708,7 @@ void SetSysClock(void)
     while ((RCC->CR & RCC_CR_PLLRDY) == 0)
     {
     }
-   
+
 #if defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F446xx) || defined(STM32F469_479xx)
     /* Enable the Over-drive to extend the clock frequency to 180 Mhz */
     PWR->CR |= PWR_CR_ODEN;
@@ -732,7 +736,7 @@ void SetSysClock(void)
     RCC->CFGR |= RCC_CFGR_SW_PLL;
 
     /* Wait till the main PLL is used as system clock source */
-    while ((RCC->CFGR & (uint32_t)RCC_CFGR_SWS ) != RCC_CFGR_SWS_PLL);
+    while ((RCC->CFGR & (uint32_t)RCC_CFGR_SWS ) != RCC_CFGR_SWS_PLL)
     {
     }
   }

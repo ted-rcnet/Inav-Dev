@@ -25,8 +25,12 @@
 #define MAX_SUPPORTED_MOTORS 12
 #endif
 
-#define YAW_JUMP_PREVENTION_LIMIT_LOW 80
-#define YAW_JUMP_PREVENTION_LIMIT_HIGH 500
+// Digital protocol has fixed values
+#define DSHOT_DISARM_COMMAND      0
+#define DSHOT_MIN_THROTTLE       48
+#define DSHOT_MAX_THROTTLE     2047
+#define DSHOT_3D_DEADBAND_LOW  1047
+#define DSHOT_3D_DEADBAND_HIGH 1048
 
 typedef enum {
     PLATFORM_MULTIROTOR     = 0,
@@ -37,6 +41,13 @@ typedef enum {
     PLATFORM_BOAT           = 5,
     PLATFORM_OTHER          = 6
 } flyingPlatformType_e;
+
+
+typedef enum {
+    OUTPUT_MODE_AUTO     = 0,
+    OUTPUT_MODE_MOTORS,
+    OUTPUT_MODE_SERVOS
+} outputMode_e;
 
 typedef struct motorAxisCorrectionLimits_s {
     int16_t min;
@@ -51,53 +62,72 @@ typedef struct motorMixer_s {
     float yaw;
 } motorMixer_t;
 
-PG_DECLARE_ARRAY(motorMixer_t, MAX_SUPPORTED_MOTORS, customMotorMixer);
+PG_DECLARE_ARRAY(motorMixer_t, MAX_SUPPORTED_MOTORS, primaryMotorMixer);
 
 typedef struct mixerConfig_s {
-    int8_t yaw_motor_direction;
-    uint16_t yaw_jump_prevention_limit;      // make limit configurable (original fixed value was 100)
+    int8_t motorDirectionInverted;
     uint8_t platformType;
     bool hasFlaps;
     int16_t appliedMixerPreset;
+    uint8_t outputMode;
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);
 
-typedef struct flight3DConfig_s {
-    uint16_t deadband3d_low;                // min 3d value
-    uint16_t deadband3d_high;               // max 3d value
-    uint16_t neutral3d;                     // center 3d value
-} flight3DConfig_t;
+typedef struct reversibleMotorsConfig_s {
+    uint16_t deadband_low;                // min 3d value
+    uint16_t deadband_high;               // max 3d value
+    uint16_t neutral;                     // center 3d value
+} reversibleMotorsConfig_t;
 
-PG_DECLARE(flight3DConfig_t, flight3DConfig);
+PG_DECLARE(reversibleMotorsConfig_t, reversibleMotorsConfig);
 
 typedef struct motorConfig_s {
     // PWM values, in milliseconds, common range is 1000-2000 (1ms to 2ms)
-    uint16_t minthrottle;                   // Set the minimum throttle command sent to the ESC (Electronic Speed Controller). This is the minimum value that allow motors to run at a idle speed.
     uint16_t maxthrottle;                   // This is the maximum value for the ESCs at full power this value can be increased up to 2000
     uint16_t mincommand;                    // This is the value for the ESCs when they are not armed. In some cases, this value must be lowered down to 900 for some specific ESCs
     uint16_t motorPwmRate;                  // The update rate of motor outputs (50-498Hz)
     uint8_t  motorPwmProtocol;
+    uint16_t digitalIdleOffsetValue;
+    uint8_t motorPoleCount;                 // Magnetic poles in the motors for calculating actual RPM from eRPM provided by ESC telemetry
 } motorConfig_t;
 
 PG_DECLARE(motorConfig_t, motorConfig);
 
-#define CHANNEL_FORWARDING_DISABLED (uint8_t)0xFF
+typedef enum {
+    MOTOR_STOPPED_USER,
+    MOTOR_STOPPED_AUTO,
+    MOTOR_RUNNING
+} motorStatus_e;
+
+typedef enum {
+    MOTOR_DIRECTION_FORWARD,
+    MOTOR_DIRECTION_BACKWARD,
+    MOTOR_DIRECTION_DEADBAND
+} reversibleMotorsThrottleState_e;
 
 extern int16_t motor[MAX_SUPPORTED_MOTORS];
 extern int16_t motor_disarmed[MAX_SUPPORTED_MOTORS];
+extern int mixerThrottleCommand;
 
+int getThrottleIdleValue(void);
+int16_t getThrottlePercent(bool);
 uint8_t getMotorCount(void);
 float getMotorMixRange(void);
 bool mixerIsOutputSaturated(void);
+motorStatus_e getMotorStatus(void);
 
 void writeAllMotors(int16_t mc);
-void mixerUsePWMIOConfiguration(void);
+void mixerInit(void);
 void mixerUpdateStateFlags(void);
 void mixerResetDisarmedMotors(void);
 void mixTable(void);
 void writeMotors(void);
-void processServoTilt(void);
-void processServoAutotrim(void);
+void processServoAutotrim(const float dT);
+void processServoAutotrimMode(void);
+void processContinuousServoAutotrim(const float dT);
 void stopMotors(void);
 void stopPwmAllMotors(void);
+
+void loadPrimaryMotorMixer(void);
+bool areMotorsRunning(void);
